@@ -1,5 +1,6 @@
 'use client'
 
+// MessageList component - updated to remove streaming dots
 import { Message } from '@/lib/store'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import ReactMarkdown from 'react-markdown'
