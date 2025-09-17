@@ -1,7 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { createStripeCustomer, createCheckoutSession } from '@/lib/stripe-config'
-import { STRIPE_PRICE_IDS, SUBSCRIPTION_TIERS, TRIAL_CONFIG } from '@/lib/subscription-tiers'
+import { stripe, createStripeCustomer, createCheckoutSession, STRIPE_PRICE_IDS } from '@/lib/stripe-config'
+import { SUBSCRIPTION_TIERS, TRIAL_CONFIG } from '@/lib/subscription-tiers'
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,6 +43,13 @@ export async function POST(request: NextRequest) {
       `${user.firstName} ${user.lastName}`.trim() || undefined
     )
     customerId = customer.id
+
+    // Update customer metadata to include userId
+    await stripe.customers.update(customerId, {
+      metadata: {
+        userId: userId,
+      },
+    })
 
     // Get the price ID for the selected tier
     const priceId = STRIPE_PRICE_IDS[tierId as keyof typeof STRIPE_PRICE_IDS]
