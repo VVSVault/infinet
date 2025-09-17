@@ -7,11 +7,11 @@
 2. Create OAuth 2.0 Client ID
 3. Application type: Web application
 4. Authorized redirect URIs (add ALL of these):
-   - `https://clerk.infiniteai.org/v1/oauth_callback`
-   - `https://infiniteai.org/sign-in/sso-callback/oauth_google`
-   - `https://infiniteai.org/sign-up/sso-callback/oauth_google`
-   - `https://www.infiniteai.org/sign-in/sso-callback/oauth_google`
-   - `https://www.infiniteai.org/sign-up/sso-callback/oauth_google`
+   - `https://clerk.infinetai.org/v1/oauth_callback`
+   - `https://infinetai.org/sign-in/sso-callback/oauth_google`
+   - `https://infinetai.org/sign-up/sso-callback/oauth_google`
+   - `https://www.infinetai.org/sign-in/sso-callback/oauth_google`
+   - `https://www.infinetai.org/sign-up/sso-callback/oauth_google`
 
 ### 2. In Clerk Dashboard
 1. Go to User & Authentication → Social Connections → Google
@@ -27,7 +27,7 @@
 3. Settings:
    - Application name: Infinet
    - Homepage URL: https://infiniteai.org
-   - Authorization callback URL: `https://clerk.infiniteai.org/v1/oauth_callback`
+   - Authorization callback URL: `https://clerk.infinetai.org/v1/oauth_callback`
 
 ### 2. In Clerk Dashboard
 1. Go to User & Authentication → Social Connections → GitHub
