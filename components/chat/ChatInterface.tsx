@@ -5,9 +5,10 @@ import { useChatStore } from '@/lib/store'
 import { MessageList } from './MessageList'
 import { ShareDialog } from './ShareDialog'
 import { ImageGenerator } from './ImageGenerator'
+import { FileUploader } from './FileUploader'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Send, StopCircle, Loader2, Share2, Trash2, ImageIcon } from 'lucide-react'
+import { Send, StopCircle, Loader2, Share2, Trash2, ImageIcon, Paperclip } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 export function ChatInterface() {
@@ -17,6 +18,7 @@ export function ChatInterface() {
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [imageGeneratorOpen, setImageGeneratorOpen] = useState(false)
   const [imageGeneratorPrompt, setImageGeneratorPrompt] = useState('')
+  const [fileUploaderOpen, setFileUploaderOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { toast } = useToast()
 
@@ -236,6 +238,36 @@ export function ChatInterface() {
     })
   }
 
+  const handleFileUploaded = (file: File, content: string) => {
+    // Create new chat if needed
+    let chatId = currentChatId
+    if (!chatId) {
+      chatId = createChat()
+    }
+
+    // Determine file type and prepare message
+    const fileType = file.type.startsWith('image/') ? 'image' : 'file'
+    const fileName = file.name
+
+    // Add message with file attachment
+    addMessage(chatId, {
+      role: 'user',
+      content: `[Attached file: ${fileName}]\n\n${fileType === 'image' ? 'Please analyze this image.' : 'Please analyze this file.'}`,
+      type: fileType === 'image' ? 'image' : 'text',
+      images: fileType === 'image' ? [content] : undefined,
+      metadata: {
+        fileName,
+        fileSize: file.size,
+        fileType: file.type,
+      },
+    })
+
+    toast({
+      title: 'File Attached',
+      description: `${fileName} has been added to the conversation`,
+    })
+  }
+
   useEffect(() => {
     textareaRef.current?.focus()
   }, [currentChatId])
@@ -291,26 +323,38 @@ export function ChatInterface() {
 
       <div className="border-t p-4">
         <form onSubmit={handleSubmit} className="flex gap-2">
-          <Button
-            type="button"
-            onClick={() => {
-              setImageGeneratorPrompt('')
-              setImageGeneratorOpen(true)
-            }}
-            variant="outline"
-            size="icon"
-            title="Generate Image"
-            disabled={isLoading}
-          >
-            <ImageIcon className="h-4 w-4" />
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                setImageGeneratorPrompt('')
+                setImageGeneratorOpen(true)
+              }}
+              variant="outline"
+              size="icon"
+              title="Generate Image"
+              disabled={isLoading}
+            >
+              <ImageIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setFileUploaderOpen(true)}
+              variant="outline"
+              size="icon"
+              title="Attach File"
+              disabled={isLoading}
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
+          </div>
           <Textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder='Type your message or "generate an image of..." to create images'
-            className="min-h-[60px] resize-none"
+            placeholder='Ask anything privately'
+            className="min-h-[80px] resize-none"
             disabled={isLoading}
           />
           {isLoading ? (
@@ -352,6 +396,12 @@ export function ChatInterface() {
         }}
         onGenerated={handleImageGenerated}
         initialPrompt={imageGeneratorPrompt}
+      />
+
+      <FileUploader
+        open={fileUploaderOpen}
+        onOpenChange={setFileUploaderOpen}
+        onFileUploaded={handleFileUploaded}
       />
     </div>
   )

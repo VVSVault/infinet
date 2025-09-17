@@ -12,6 +12,9 @@ export interface Message {
     prompt?: string
     model?: string
     style?: string
+    fileName?: string
+    fileSize?: number
+    fileType?: string
   }
 }
 
