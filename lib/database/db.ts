@@ -339,6 +339,175 @@ export async function checkUsageAlerts(userId: string): Promise<void> {
   }
 }
 
+// Get or create user
+export async function getOrCreateUser(clerkId: string, email: string): Promise<any> {
+  try {
+    // First check if user exists
+    const existing = await sql`
+      SELECT * FROM users_subscription
+      WHERE user_id = ${clerkId}
+      LIMIT 1
+    `
+
+    if (existing.rows[0]) {
+      return { id: clerkId, ...existing.rows[0] }
+    }
+
+    // Create new user with free tier
+    const now = new Date()
+    const endOfMonth = new Date(now)
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1)
+
+    await sql`
+      INSERT INTO users_subscription (
+        user_id, tier, status, stripe_customer_id,
+        current_period_start, current_period_end
+      ) VALUES (
+        ${clerkId}, 'free', 'active', NULL,
+        ${now.toISOString()}, ${endOfMonth.toISOString()}
+      )
+    `
+
+    // Also initialize their usage cache
+    await sql`
+      INSERT INTO monthly_usage_cache (
+        user_id, billing_period_start, billing_period_end,
+        total_tokens, total_requests, tokens_remaining, last_updated
+      ) VALUES (
+        ${clerkId}, ${now.toISOString()}, ${endOfMonth.toISOString()},
+        0, 0, 500, CURRENT_TIMESTAMP
+      )
+    `
+
+    return { id: clerkId, email, tier: 'free', status: 'active' }
+  } catch (error) {
+    console.error('Error in getOrCreateUser:', error)
+    return null
+  }
+}
+
+// Update user subscription
+export async function updateUserSubscription(
+  userId: string,
+  updates: {
+    subscription_tier?: string
+    subscription_status?: string
+    stripe_subscription_id?: string
+    stripe_customer_id?: string
+    tokens_limit?: number
+    subscription_period_start?: Date
+    subscription_period_end?: Date
+  }
+): Promise<boolean> {
+  try {
+    const params: any = {}
+    const sets: string[] = []
+
+    if (updates.subscription_tier) {
+      params.tier = updates.subscription_tier
+      sets.push('tier = ${tier}')
+    }
+    if (updates.subscription_status) {
+      params.status = updates.subscription_status
+      sets.push('status = ${status}')
+    }
+    if (updates.stripe_subscription_id) {
+      params.stripe_subscription_id = updates.stripe_subscription_id
+      sets.push('stripe_subscription_id = ${stripe_subscription_id}')
+    }
+    if (updates.stripe_customer_id) {
+      params.stripe_customer_id = updates.stripe_customer_id
+      sets.push('stripe_customer_id = ${stripe_customer_id}')
+    }
+    if (updates.subscription_period_start) {
+      params.period_start = updates.subscription_period_start.toISOString()
+      sets.push('current_period_start = ${period_start}')
+    }
+    if (updates.subscription_period_end) {
+      params.period_end = updates.subscription_period_end.toISOString()
+      sets.push('current_period_end = ${period_end}')
+    }
+
+    if (sets.length === 0) return true
+
+    // Build and execute the update query
+    await sql`
+      UPDATE users_subscription
+      SET ${sql.unsafe(sets.join(', '))}
+      WHERE user_id = ${userId}
+    `
+
+    // Update the cache if tier changed
+    if (updates.subscription_tier) {
+      const limit = getTokenLimit(updates.subscription_tier as any)
+      await sql`
+        UPDATE monthly_usage_cache
+        SET tokens_remaining = ${limit} - total_tokens
+        WHERE user_id = ${userId}
+      `
+    }
+
+    return true
+  } catch (error) {
+    console.error('Error updating subscription:', error)
+    return false
+  }
+}
+
+// Get user by Stripe customer ID
+export async function getUserByStripeCustomerId(customerId: string): Promise<any> {
+  try {
+    const result = await sql`
+      SELECT * FROM users_subscription
+      WHERE stripe_customer_id = ${customerId}
+      LIMIT 1
+    `
+    return result.rows[0] ? { id: result.rows[0].user_id, ...result.rows[0] } : null
+  } catch (error) {
+    console.error('Error getting user by stripe ID:', error)
+    return null
+  }
+}
+
+// Get user by Clerk ID
+export async function getUserByClerkId(clerkId: string): Promise<any> {
+  try {
+    const result = await sql`
+      SELECT * FROM users_subscription
+      WHERE user_id = ${clerkId}
+      LIMIT 1
+    `
+    return result.rows[0] ? { id: clerkId, ...result.rows[0] } : null
+  } catch (error) {
+    console.error('Error getting user by clerk ID:', error)
+    return null
+  }
+}
+
+// Log subscription event
+export async function logSubscriptionEvent(
+  userId: string,
+  eventType: string,
+  tier?: string,
+  status?: string,
+  stripeEventId?: string,
+  metadata?: any
+): Promise<void> {
+  try {
+    await sql`
+      INSERT INTO subscription_history (
+        user_id, event_type, tier, status,
+        stripe_event_id, metadata, created_at
+      ) VALUES (
+        ${userId}, ${eventType}, ${tier || null}, ${status || null},
+        ${stripeEventId || null}, ${JSON.stringify(metadata) || null}, CURRENT_TIMESTAMP
+      )
+    `
+  } catch (error) {
+    console.error('Error logging subscription event:', error)
+  }
+}
+
 // Reset monthly usage (for cron job)
 export async function resetExpiredSubscriptions(): Promise<void> {
   try {

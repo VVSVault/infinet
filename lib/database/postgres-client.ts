@@ -3,11 +3,23 @@ import { Pool } from 'pg'
 // Parse the connection string and add SSL params
 const connectionString = process.env.POSTGRES_URL || ''
 
+// Check if we're using a pooler connection (port 6543) or direct connection (port 5432)
+const isPoolerConnection = connectionString.includes(':6543')
+
+// Log connection type for debugging
+console.log('[Database] Connection type:', isPoolerConnection ? 'Pooler (6543)' : 'Direct (5432)',
+  'Environment:', process.env.NODE_ENV || 'development')
+
 // Create a connection pool
 // Pooler connections (port 6543) don't use SSL - PgBouncer handles that
+// Direct connections (port 5432) need SSL in production
 const pool = new Pool({
   connectionString: connectionString,
-  ssl: false, // No SSL for pooler connections on port 6543!
+  ssl: isPoolerConnection
+    ? false // No SSL for pooler connections
+    : process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false } // SSL for production direct connections
+    : false, // No SSL for local development
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,

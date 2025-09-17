@@ -4,9 +4,8 @@ import {
   getUserByClerkId,
   getUserByStripeCustomerId,
   updateUserSubscription,
-  logSubscriptionEvent,
-  resetMonthlyUsage
-} from '@/lib/database'
+  logSubscriptionEvent
+} from '@/lib/database/db'
 import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
 import Stripe from 'stripe'
 
@@ -106,13 +105,8 @@ export async function POST(request: NextRequest) {
           subscription_period_end: new Date((subscription as any).current_period_end * 1000),
         })
 
-        // If it's a new period, reset usage
-        if (event.type === STRIPE_WEBHOOK_EVENTS.SUBSCRIPTION_UPDATED) {
-          const periodStart = new Date((subscription as any).current_period_start * 1000)
-          if (user.subscription_period_start && periodStart > user.subscription_period_start) {
-            await resetMonthlyUsage(user.id)
-          }
-        }
+        // If it's a new period, the usage cache will be reset automatically
+        // when the new period is detected in getMonthlyUsage()
 
         // Log the event
         await logSubscriptionEvent(

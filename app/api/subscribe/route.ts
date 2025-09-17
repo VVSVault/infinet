@@ -2,7 +2,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, createStripeCustomer, createCheckoutSession, STRIPE_PRICE_IDS } from '@/lib/stripe-config'
 import { SUBSCRIPTION_TIERS, TRIAL_CONFIG } from '@/lib/subscription-tiers'
-import { getOrCreateUser, updateUserSubscription } from '@/lib/database'
+import { getOrCreateUser, updateUserSubscription } from '@/lib/database/db'
 
 export async function POST(request: NextRequest) {
   try {
