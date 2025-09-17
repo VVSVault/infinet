@@ -158,8 +158,8 @@ export async function checkSubscription(request: NextRequest) {
         {
           error: 'Rate Limit Exceeded',
           code: 'RATE_LIMIT_EXCEEDED',
-          message: 'You have exceeded the hourly request limit. Please wait before making more requests.',
-          retryAfter: 3600, // 1 hour in seconds
+          message: 'You have exceeded the daily request limit. Please wait until tomorrow to make more requests.',
+          retryAfter: 86400, // 24 hours in seconds
         },
         { status: 429 }
       )

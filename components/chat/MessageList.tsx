@@ -30,39 +30,35 @@ interface MessageContentProps {
 }
 
 function MessageContent({ content, isBot, messageId, typedMessageIds }: MessageContentProps) {
-  const [displayedContent, setDisplayedContent] = useState('')
-  const [isTyping, setIsTyping] = useState(false)
+  const [isStreaming, setIsStreaming] = useState(false)
+  const previousContentRef = useRef('')
+  const hasStartedTypingRef = useRef(false)
 
   useEffect(() => {
-    // Only animate bot messages that haven't been typed yet
-    if (!isBot || typedMessageIds.has(messageId)) {
-      setDisplayedContent(content)
+    // For user messages, just show them immediately
+    if (!isBot) {
       return
     }
 
-    setIsTyping(true)
-    setDisplayedContent('')
-    typedMessageIds.add(messageId)
+    // Check if this is a streaming message (content is growing)
+    const isCurrentlyStreaming = content.length > previousContentRef.current.length &&
+                                 !typedMessageIds.has(messageId)
 
-    // Parse content to preserve markdown structure
-    let currentIndex = 0
-    const speed = 15 // Milliseconds between updates
-    const charsPerUpdate = 5 // Characters to add per update
+    if (isCurrentlyStreaming) {
+      setIsStreaming(true)
+      hasStartedTypingRef.current = true
+    } else if (hasStartedTypingRef.current && content.length > 0 &&
+               content === previousContentRef.current) {
+      // Content stopped changing, streaming is complete
+      setIsStreaming(false)
+      typedMessageIds.add(messageId)
+      hasStartedTypingRef.current = false
+    }
 
-    const typeWriter = setInterval(() => {
-      if (currentIndex < content.length) {
-        const nextChars = Math.min(charsPerUpdate, content.length - currentIndex)
-        setDisplayedContent(content.substring(0, currentIndex + nextChars))
-        currentIndex += nextChars
-      } else {
-        setIsTyping(false)
-        clearInterval(typeWriter)
-      }
-    }, speed)
+    previousContentRef.current = content
+  }, [content, isBot, messageId, typedMessageIds])
 
-    return () => clearInterval(typeWriter)
-  }, [content, isBot, messageId])
-
+  // Direct display for streaming content (real-time updates)
   return (
     <>
       <ReactMarkdown
@@ -97,10 +93,14 @@ function MessageContent({ content, isBot, messageId, typedMessageIds }: MessageC
           },
         }}
       >
-        {displayedContent}
+        {content}
       </ReactMarkdown>
-      {isTyping && (
-        <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse" />
+      {isStreaming && (
+        <span className="inline-flex items-center ml-1">
+          <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+          <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce mx-0.5" style={{ animationDelay: '150ms' }} />
+          <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+        </span>
       )}
     </>
   )

@@ -179,6 +179,7 @@ export function ChatInterface() {
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
       let accumulatedContent = ''
+      let buffer = ''
 
       if (reader) {
         while (true) {
@@ -186,41 +187,48 @@ export function ChatInterface() {
           if (done) break
 
           const chunk = decoder.decode(value, { stream: true })
-          const lines = chunk.split('\n')
+          buffer += chunk
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || '' // Keep the last incomplete line in the buffer
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              const data = line.slice(6)
+              const data = line.slice(6).trim()
               if (data === '[DONE]') {
                 break
               }
+              if (!data) continue
+
               try {
                 const parsed = JSON.parse(data)
                 if (parsed.content) {
                   accumulatedContent += parsed.content
-                  // Update the last assistant message
+                  // Update the last assistant message with smoother streaming
                   const store = useChatStore.getState()
                   const chat = store.chats.find(c => c.id === chatId)
                   if (chat && chat.messages.length > 0) {
                     const lastMessage = chat.messages[chat.messages.length - 1]
                     if (lastMessage.role === 'assistant') {
-                      store.chats = store.chats.map(c =>
-                        c.id === chatId
-                          ? {
-                              ...c,
-                              messages: c.messages.map((m, idx) =>
-                                idx === c.messages.length - 1
-                                  ? { ...m, content: accumulatedContent }
-                                  : m
-                              )
-                            }
-                          : c
-                      )
+                      // Use requestAnimationFrame for smoother updates
+                      requestAnimationFrame(() => {
+                        store.chats = store.chats.map(c =>
+                          c.id === chatId
+                            ? {
+                                ...c,
+                                messages: c.messages.map((m, idx) =>
+                                  idx === c.messages.length - 1
+                                    ? { ...m, content: accumulatedContent }
+                                    : m
+                                )
+                              }
+                            : c
+                        )
+                      })
                     }
                   }
                 }
               } catch (e) {
-                console.error('Error parsing SSE data:', e)
+                console.error('Error parsing SSE data:', e, 'Data:', data)
               }
             }
           }

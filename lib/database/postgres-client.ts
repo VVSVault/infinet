@@ -1,10 +1,27 @@
 import { Pool } from 'pg'
 
 // Parse the connection string and add SSL params
-const connectionString = process.env.POSTGRES_URL || ''
+let connectionString = process.env.POSTGRES_URL || ''
 
 // Check if we're using a pooler connection (port 6543) or direct connection (port 5432)
 const isPoolerConnection = connectionString.includes(':6543')
+
+// For pooler connections, remove any SSL parameters from the connection string
+// These can override our ssl: false setting
+if (isPoolerConnection) {
+  // Remove any SSL-related query parameters
+  const url = new URL(connectionString)
+  url.searchParams.delete('sslmode')
+  url.searchParams.delete('ssl')
+  url.searchParams.delete('sslcert')
+  url.searchParams.delete('sslkey')
+  url.searchParams.delete('sslrootcert')
+  url.searchParams.delete('supa')
+  connectionString = url.toString()
+
+  console.log('[Database] Pooler connection detected - SSL disabled')
+  console.log('[Database] Connection string (SSL params removed):', connectionString.substring(0, 50) + '...')
+}
 
 // Log connection type for debugging
 console.log('[Database] Connection type:', isPoolerConnection ? 'Pooler (6543)' : 'Direct (5432)',
@@ -16,7 +33,7 @@ console.log('[Database] Connection type:', isPoolerConnection ? 'Pooler (6543)' 
 const pool = new Pool({
   connectionString: connectionString,
   ssl: isPoolerConnection
-    ? false // No SSL for pooler connections
+    ? undefined // Explicitly undefined for pooler connections - no SSL at all
     : process.env.NODE_ENV === 'production'
     ? { rejectUnauthorized: false } // SSL for production direct connections
     : false, // No SSL for local development

@@ -4,7 +4,7 @@ export interface SubscriptionTier {
   price: number
   priceId?: string // Stripe price ID
   tokenLimit: number
-  requestsPerHour: number
+  requestsPerDay: number
   features: string[]
   description: string
   popular?: boolean
@@ -16,10 +16,10 @@ export const SUBSCRIPTION_TIERS: Record<string, SubscriptionTier> = {
     name: 'Free',
     price: 0,
     tokenLimit: 500,
-    requestsPerHour: 10,
+    requestsPerDay: 10,
     features: [
       '500 tokens per month',
-      '10 requests per hour',
+      '10 requests per day',
       'Standard processing speed',
       'Community support',
       'Text chat only',
@@ -32,10 +32,10 @@ export const SUBSCRIPTION_TIERS: Record<string, SubscriptionTier> = {
     name: 'Starter',
     price: 10,
     tokenLimit: 10000,
-    requestsPerHour: 30,
+    requestsPerDay: 30,
     features: [
       '10,000 tokens per month',
-      '30 requests per hour',
+      '30 requests per day',
       'Standard processing speed',
       'Community support',
       'Text chat only',
@@ -48,10 +48,10 @@ export const SUBSCRIPTION_TIERS: Record<string, SubscriptionTier> = {
     name: 'Premium',
     price: 50,
     tokenLimit: 50000,
-    requestsPerHour: 60,
+    requestsPerDay: 60,
     features: [
       '50,000 tokens per month',
-      '60 requests per hour',
+      '60 requests per day',
       'Standard processing speed',
       'Email support',
       'All AI models access',
@@ -65,10 +65,10 @@ export const SUBSCRIPTION_TIERS: Record<string, SubscriptionTier> = {
     name: 'Limitless',
     price: 150,
     tokenLimit: 100000,
-    requestsPerHour: -1, // Unlimited
+    requestsPerDay: -1, // Unlimited
     features: [
       '100,000 tokens per month',
-      'Unlimited requests per hour',
+      'Unlimited requests per day',
       'Priority processing speed',
       'Priority support',
       'Advanced analytics',

@@ -209,23 +209,23 @@ async function updateMonthlyUsageCache(userId: string): Promise<void> {
   }
 }
 
-// Check rate limit
+// Check rate limit (daily)
 export async function checkRateLimit(userId: string, tier: string): Promise<boolean> {
   if (tier === 'limitless') return true // Unlimited requests
 
   let limit: number
   switch (tier) {
     case 'free':
-      limit = 10
+      limit = 10 // 10 requests per day
       break
     case 'starter':
-      limit = 30
+      limit = 30 // 30 requests per day
       break
     case 'premium':
-      limit = 60
+      limit = 60 // 60 requests per day
       break
     case 'trial':
-      limit = 20
+      limit = 20 // 20 requests per day
       break
     default:
       limit = 10
@@ -236,7 +236,7 @@ export async function checkRateLimit(userId: string, tier: string): Promise<bool
       SELECT COUNT(*) as request_count
       FROM request_rate_limit
       WHERE user_id = ${userId}
-        AND request_timestamp > NOW() - INTERVAL '1 hour'
+        AND request_timestamp > NOW() - INTERVAL '1 day'
     `
 
     const count = parseInt(result.rows[0]?.request_count || '0')
