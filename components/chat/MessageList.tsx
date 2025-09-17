@@ -101,7 +101,7 @@ export function MessageList({ messages, loadingMessage, isGenerating = false }: 
   }
 
   return (
-    <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+    <ScrollArea className="flex-1 p-2 sm:p-4" ref={scrollAreaRef}>
       {messages.length === 0 ? (
         <div className="flex h-full items-center justify-center">
           <div className="text-center text-muted-foreground">
@@ -110,7 +110,7 @@ export function MessageList({ messages, loadingMessage, isGenerating = false }: 
           </div>
         </div>
       ) : (
-        <div className="space-y-6 max-w-4xl mx-auto py-4">
+        <div className="space-y-4 sm:space-y-6 max-w-4xl mx-auto py-2 sm:py-4">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -129,10 +129,10 @@ export function MessageList({ messages, loadingMessage, isGenerating = false }: 
 
               <div className={cn(
                 'flex flex-col space-y-2',
-                message.role === 'user' ? 'max-w-[70%]' : 'max-w-[85%]'
+                message.role === 'user' ? 'max-w-[85%] sm:max-w-[70%]' : 'max-w-[90%] sm:max-w-[85%]'
               )}>
                 <div className={cn(
-                  'rounded-lg px-4 py-3',
+                  'rounded-lg px-3 py-2 sm:px-4 sm:py-3',
                   message.role === 'user'
                     ? 'bg-primary text-primary-foreground ml-auto'
                     : 'bg-muted'

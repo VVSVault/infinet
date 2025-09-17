@@ -356,16 +356,17 @@ export function ChatInterface() {
 
   return (
     <div className="flex h-full flex-col relative">
-      <div className="flex items-center justify-between border-b px-4 py-2">
-        <h2 className="font-semibold">{currentChat.title}</h2>
-        <div className="flex gap-2">
+      <div className="flex items-center justify-between border-b px-2 sm:px-4 py-2">
+        <h2 className="font-semibold text-sm sm:text-base truncate">{currentChat.title}</h2>
+        <div className="flex gap-1 sm:gap-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setImageGeneratorOpen(true)}
             title="Generate Image"
+            className="h-8 w-8 sm:h-9 sm:w-9 p-0"
           >
-            <ImageIcon className="h-4 w-4" />
+            <ImageIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
           <Button
             variant="ghost"
@@ -373,8 +374,9 @@ export function ChatInterface() {
             onClick={() => setShareDialogOpen(true)}
             disabled={currentChat.messages.length === 0}
             title="Share Chat"
+            className="h-8 w-8 sm:h-9 sm:w-9 p-0"
           >
-            <Share2 className="h-4 w-4" />
+            <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
         </div>
       </div>
@@ -389,9 +391,9 @@ export function ChatInterface() {
         />
       )}
 
-      <div className="border-t p-4">
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <div className="flex flex-col gap-2">
+      <div className="border-t p-2 sm:p-4">
+        <form onSubmit={handleSubmit} className="flex gap-1 sm:gap-2">
+          <div className="flex flex-col gap-1 sm:gap-2">
             <Button
               type="button"
               onClick={() => {
@@ -402,8 +404,9 @@ export function ChatInterface() {
               size="icon"
               title="Generate Image"
               disabled={isLoading}
+              className="h-8 w-8 sm:h-10 sm:w-10"
             >
-              <ImageIcon className="h-4 w-4" />
+              <ImageIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
             <Button
               type="button"
@@ -412,8 +415,9 @@ export function ChatInterface() {
               size="icon"
               title="Attach File"
               disabled={isLoading}
+              className="h-8 w-8 sm:h-10 sm:w-10"
             >
-              <Paperclip className="h-4 w-4" />
+              <Paperclip className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
           </div>
           <Textarea
@@ -422,7 +426,7 @@ export function ChatInterface() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder='Ask anything privately'
-            className="min-h-[80px] resize-none"
+            className="min-h-[60px] sm:min-h-[80px] resize-none text-sm sm:text-base"
             disabled={isLoading}
           />
           {isLoading ? (
@@ -431,19 +435,21 @@ export function ChatInterface() {
               onClick={handleStop}
               variant="destructive"
               size="icon"
+              className="h-8 w-8 sm:h-10 sm:w-10"
             >
-              <StopCircle className="h-4 w-4" />
+              <StopCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
           ) : (
             <Button
               type="submit"
               disabled={!input.trim()}
               size="icon"
+              className="h-8 w-8 sm:h-10 sm:w-10"
             >
               {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
               ) : (
-                <Send className="h-4 w-4" />
+                <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               )}
             </Button>
           )}

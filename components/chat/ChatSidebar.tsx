@@ -154,6 +154,14 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
 
   return (
     <>
+      {/* Mobile overlay backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
       <div
         className={cn(
           'w-72 bg-background border-r transition-all duration-300',
