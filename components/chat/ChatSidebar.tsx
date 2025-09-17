@@ -253,7 +253,7 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0 opacity-10 hover:opacity-100 group-hover:opacity-100 transition-opacity"
+                            className="h-6 w-6 p-0 flex-shrink-0 opacity-20 hover:opacity-100 group-hover:opacity-100 transition-opacity"
                           >
                             <MoreVertical className="h-3 w-3" />
                           </Button>
@@ -282,7 +282,7 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                           <div
                             key={chat.id}
                             className={cn(
-                              'group relative flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer',
+                              'group relative flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer overflow-hidden',
                               currentChatId === chat.id && 'bg-accent'
                             )}
                             onClick={() => setCurrentChat(chat.id)}
@@ -298,12 +298,12 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                                   if (e.key === 'Escape') handleCancelEdit()
                                 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="h-6 px-1"
+                                className="h-6 px-1 flex-1"
                                 autoFocus
                               />
                             ) : (
-                              <span className="text-sm truncate flex-1">
-                                {chat.title}
+                              <span className="text-sm truncate flex-1 min-w-0">
+                                {chat.title.split(' ').slice(0, 4).join(' ')}{chat.title.split(' ').length > 4 ? '...' : ''}
                               </span>
                             )}
                             <DropdownMenu>
@@ -311,7 +311,7 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-6 w-6 p-0 opacity-10 hover:opacity-100 group-hover:opacity-100 transition-opacity"
+                                  className="h-6 w-6 p-0 flex-shrink-0 opacity-20 hover:opacity-100 group-hover:opacity-100 transition-opacity"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <MoreVertical className="h-3 w-3" />
@@ -372,7 +372,7 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                         <div
                           key={chat.id}
                           className={cn(
-                            'group relative flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer',
+                            'group relative flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer overflow-hidden',
                             currentChatId === chat.id && 'bg-accent'
                           )}
                           onClick={() => setCurrentChat(chat.id)}
@@ -389,12 +389,12 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                                 if (e.key === 'Escape') handleCancelEdit()
                               }}
                               onClick={(e) => e.stopPropagation()}
-                              className="h-6 px-1"
+                              className="h-6 px-1 flex-1"
                               autoFocus
                             />
                           ) : (
-                            <span className="flex-1 truncate text-sm">
-                              {chat.title}
+                            <span className="flex-1 truncate text-sm min-w-0">
+                              {chat.title.split(' ').slice(0, 4).join(' ')}{chat.title.split(' ').length > 4 ? '...' : ''}
                             </span>
                           )}
 
@@ -403,7 +403,7 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 p-0 opacity-10 hover:opacity-100 group-hover:opacity-100 transition-opacity"
+                                className="h-6 w-6 p-0 flex-shrink-0 opacity-20 hover:opacity-100 group-hover:opacity-100 transition-opacity"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <MoreVertical className="h-3 w-3" />
