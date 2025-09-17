@@ -157,7 +157,7 @@ export function MessageList({ messages }: MessageListProps) {
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        code({ node, className, children, ...props }) {
+                        code({ node, className, children, ...props }: any) {
                           const match = /language-(\w+)/.exec(className || '')
                           const inline = !match
                           return !inline ? (
@@ -165,7 +165,6 @@ export function MessageList({ messages }: MessageListProps) {
                               style={oneDark as any}
                               language={match[1]}
                               PreTag="div"
-                              {...props}
                             >
                               {String(children).replace(/\n$/, '')}
                             </SyntaxHighlighter>
