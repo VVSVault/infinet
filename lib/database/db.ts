@@ -1,0 +1,301 @@
+import { sql } from '@vercel/postgres'
+import { SUBSCRIPTION_TIERS } from '../subscription-tiers'
+
+export interface UserSubscription {
+  user_id: string
+  tier: 'premium' | 'limitless' | 'trial'
+  stripe_customer_id?: string
+  stripe_subscription_id?: string
+  current_period_start: Date
+  current_period_end: Date
+  status: 'active' | 'canceled' | 'past_due' | 'trial' | 'suspended'
+  trial_ends_at?: Date
+}
+
+export interface TokenUsage {
+  user_id: string
+  tokens_used: number
+  tokens_estimated?: number
+  timestamp: Date
+  billing_period_start: Date
+  billing_period_end: Date
+  chat_id?: string
+  message_id?: string
+  message_type?: 'text' | 'image' | 'file'
+  model_used?: string
+}
+
+export interface MonthlyUsageCache {
+  user_id: string
+  billing_period_start: Date
+  billing_period_end: Date
+  total_tokens: number
+  total_requests: number
+  tokens_remaining: number
+  last_updated: Date
+}
+
+// Get user subscription
+export async function getUserSubscription(userId: string): Promise<UserSubscription | null> {
+  try {
+    const result = await sql`
+      SELECT * FROM users_subscription
+      WHERE user_id = ${userId}
+      AND status IN ('active', 'trial')
+      LIMIT 1
+    `
+    return result.rows[0] as UserSubscription || null
+  } catch (error) {
+    console.error('Error fetching user subscription:', error)
+    return null
+  }
+}
+
+// Create or update subscription
+export async function upsertSubscription(subscription: UserSubscription): Promise<void> {
+  try {
+    await sql`
+      INSERT INTO users_subscription (
+        user_id, tier, stripe_customer_id, stripe_subscription_id,
+        current_period_start, current_period_end, status, trial_ends_at
+      ) VALUES (
+        ${subscription.user_id}, ${subscription.tier}, ${subscription.stripe_customer_id},
+        ${subscription.stripe_subscription_id}, ${subscription.current_period_start},
+        ${subscription.current_period_end}, ${subscription.status}, ${subscription.trial_ends_at}
+      )
+      ON CONFLICT (user_id) DO UPDATE SET
+        tier = EXCLUDED.tier,
+        stripe_customer_id = EXCLUDED.stripe_customer_id,
+        stripe_subscription_id = EXCLUDED.stripe_subscription_id,
+        current_period_start = EXCLUDED.current_period_start,
+        current_period_end = EXCLUDED.current_period_end,
+        status = EXCLUDED.status,
+        trial_ends_at = EXCLUDED.trial_ends_at,
+        updated_at = CURRENT_TIMESTAMP
+    `
+  } catch (error) {
+    console.error('Error upserting subscription:', error)
+    throw error
+  }
+}
+
+// Track token usage
+export async function trackTokenUsage(usage: TokenUsage): Promise<void> {
+  try {
+    // Insert usage record
+    await sql`
+      INSERT INTO token_usage (
+        user_id, tokens_used, tokens_estimated, timestamp,
+        billing_period_start, billing_period_end, chat_id, message_id,
+        message_type, model_used, cost_per_token
+      ) VALUES (
+        ${usage.user_id}, ${usage.tokens_used}, ${usage.tokens_estimated},
+        ${usage.timestamp}, ${usage.billing_period_start}, ${usage.billing_period_end},
+        ${usage.chat_id}, ${usage.message_id}, ${usage.message_type}, ${usage.model_used},
+        ${calculateCostPerToken(usage.user_id)}
+      )
+    `
+
+    // Update cache
+    await updateMonthlyUsageCache(usage.user_id)
+  } catch (error) {
+    console.error('Error tracking token usage:', error)
+    throw error
+  }
+}
+
+// Get monthly usage
+export async function getMonthlyUsage(userId: string): Promise<MonthlyUsageCache | null> {
+  try {
+    const subscription = await getUserSubscription(userId)
+    if (!subscription) return null
+
+    const result = await sql`
+      SELECT
+        ${userId} as user_id,
+        ${subscription.current_period_start} as billing_period_start,
+        ${subscription.current_period_end} as billing_period_end,
+        COALESCE(SUM(tokens_used), 0) as total_tokens,
+        COUNT(*) as total_requests,
+        ${getTokenLimit(subscription.tier)} - COALESCE(SUM(tokens_used), 0) as tokens_remaining
+      FROM token_usage
+      WHERE user_id = ${userId}
+        AND timestamp >= ${subscription.current_period_start}
+        AND timestamp < ${subscription.current_period_end}
+    `
+
+    return result.rows[0] as MonthlyUsageCache || null
+  } catch (error) {
+    console.error('Error fetching monthly usage:', error)
+    return null
+  }
+}
+
+// Update monthly usage cache
+async function updateMonthlyUsageCache(userId: string): Promise<void> {
+  try {
+    const usage = await getMonthlyUsage(userId)
+    if (!usage) return
+
+    await sql`
+      INSERT INTO monthly_usage_cache (
+        user_id, billing_period_start, billing_period_end,
+        total_tokens, total_requests, tokens_remaining, last_updated
+      ) VALUES (
+        ${usage.user_id}, ${usage.billing_period_start}, ${usage.billing_period_end},
+        ${usage.total_tokens}, ${usage.total_requests}, ${usage.tokens_remaining},
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (user_id) DO UPDATE SET
+        billing_period_start = EXCLUDED.billing_period_start,
+        billing_period_end = EXCLUDED.billing_period_end,
+        total_tokens = EXCLUDED.total_tokens,
+        total_requests = EXCLUDED.total_requests,
+        tokens_remaining = EXCLUDED.tokens_remaining,
+        last_updated = CURRENT_TIMESTAMP
+    `
+  } catch (error) {
+    console.error('Error updating monthly usage cache:', error)
+  }
+}
+
+// Check rate limit
+export async function checkRateLimit(userId: string, tier: string): Promise<boolean> {
+  if (tier === 'limitless') return true // Unlimited requests
+
+  const limit = tier === 'premium' ? 60 : 20 // 60 for premium, 20 for trial
+
+  try {
+    const result = await sql`
+      SELECT COUNT(*) as request_count
+      FROM request_rate_limit
+      WHERE user_id = ${userId}
+        AND request_timestamp > NOW() - INTERVAL '1 hour'
+    `
+
+    const count = parseInt(result.rows[0]?.request_count || '0')
+    return count < limit
+  } catch (error) {
+    console.error('Error checking rate limit:', error)
+    return false
+  }
+}
+
+// Log request for rate limiting
+export async function logRequest(userId: string, endpoint: string): Promise<void> {
+  try {
+    await sql`
+      INSERT INTO request_rate_limit (user_id, endpoint, request_timestamp)
+      VALUES (${userId}, ${endpoint}, CURRENT_TIMESTAMP)
+    `
+  } catch (error) {
+    console.error('Error logging request:', error)
+  }
+}
+
+// Check if user has exceeded token limit
+export async function hasExceededTokenLimit(userId: string): Promise<boolean> {
+  const usage = await getMonthlyUsage(userId)
+  return usage ? usage.tokens_remaining <= 0 : true
+}
+
+// Get token limit for tier
+function getTokenLimit(tier: string): number {
+  switch (tier) {
+    case 'premium':
+      return 25000
+    case 'limitless':
+      return 100000
+    case 'trial':
+      return 1000
+    default:
+      return 0
+  }
+}
+
+// Calculate cost per token
+function calculateCostPerToken(userId: string): number {
+  // This would fetch the user's tier and calculate based on that
+  // For now, returning a default value
+  return 0.002 // $0.002 per token for premium tier
+}
+
+// Check and send usage alerts
+export async function checkUsageAlerts(userId: string): Promise<void> {
+  const usage = await getMonthlyUsage(userId)
+  const subscription = await getUserSubscription(userId)
+
+  if (!usage || !subscription) return
+
+  const limit = getTokenLimit(subscription.tier)
+  const percentage = (usage.total_tokens / limit) * 100
+
+  // Check which alerts to send
+  const thresholds = [
+    { percentage: 80, type: '80_percent' },
+    { percentage: 90, type: '90_percent' },
+    { percentage: 95, type: '95_percent' },
+    { percentage: 100, type: '100_percent' },
+  ]
+
+  for (const threshold of thresholds) {
+    if (percentage >= threshold.percentage) {
+      // Check if alert was already sent for this period
+      const existing = await sql`
+        SELECT id FROM usage_alerts
+        WHERE user_id = ${userId}
+          AND alert_type = ${threshold.type}
+          AND billing_period_start = ${subscription.current_period_start}
+        LIMIT 1
+      `
+
+      if (existing.rows.length === 0) {
+        // Send alert
+        await sql`
+          INSERT INTO usage_alerts (
+            user_id, alert_type, tokens_used, tokens_limit,
+            billing_period_start, sent_at
+          ) VALUES (
+            ${userId}, ${threshold.type}, ${usage.total_tokens},
+            ${limit}, ${subscription.current_period_start}, CURRENT_TIMESTAMP
+          )
+        `
+
+        // Here you would also send an email/notification to the user
+        console.log(`Usage alert sent: ${userId} at ${percentage}%`)
+      }
+    }
+  }
+}
+
+// Reset monthly usage (for cron job)
+export async function resetExpiredSubscriptions(): Promise<void> {
+  try {
+    // Find subscriptions that have passed their period end
+    const expiredSubs = await sql`
+      SELECT user_id, current_period_end FROM users_subscription
+      WHERE status = 'active'
+        AND current_period_end < CURRENT_TIMESTAMP
+    `
+
+    for (const sub of expiredSubs.rows) {
+      // Update to new period (add 1 month)
+      await sql`
+        UPDATE users_subscription
+        SET current_period_start = current_period_end,
+            current_period_end = current_period_end + INTERVAL '1 month'
+        WHERE user_id = ${sub.user_id}
+      `
+
+      // Clear cache
+      await sql`
+        DELETE FROM monthly_usage_cache
+        WHERE user_id = ${sub.user_id}
+      `
+
+      console.log(`Reset subscription for user: ${sub.user_id}`)
+    }
+  } catch (error) {
+    console.error('Error resetting expired subscriptions:', error)
+  }
+}

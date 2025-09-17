@@ -1,28 +1,56 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { checkSubscription, isSubscriptionError } from '@/middleware/checkSubscription'
+import { trackTokenUsage, checkUsageAlerts } from '@/lib/database/db'
+import { estimateTokens } from '@/lib/subscription-tiers'
+
+// Simple token counter (you may want to use a proper tokenizer like tiktoken in production)
+function countTokens(text: string): number {
+  // Rough estimation: 1 token ≈ 4 characters
+  return Math.ceil(text.length / 4)
+}
 
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth()
 
     if (!userId) {
-      return new NextResponse('Unauthorized', { status: 401 })
+      return NextResponse.json(
+        { error: 'Unauthorized', code: 'NO_AUTH' },
+        { status: 401 }
+      )
+    }
+
+    // Check subscription and token limits
+    const subscriptionCheck = await checkSubscription(request)
+    if (isSubscriptionError(subscriptionCheck)) {
+      return subscriptionCheck
     }
 
     const { messages, streaming = true } = await request.json()
 
     if (!messages || !Array.isArray(messages)) {
-      return new NextResponse('Messages array is required', { status: 400 })
+      return NextResponse.json(
+        { error: 'Messages array is required' },
+        { status: 400 }
+      )
     }
+
+    // Estimate tokens for this request
+    const lastMessage = messages[messages.length - 1]?.content || ''
+    const estimatedTokens = estimateTokens(lastMessage)
 
     const veniceApiKey = process.env.VENICE_API_KEY
     const veniceApiUrl = process.env.VENICE_API_URL
 
     if (!veniceApiKey || !veniceApiUrl) {
-      return new NextResponse('API configuration missing', { status: 500 })
+      return NextResponse.json(
+        { error: 'API configuration missing' },
+        { status: 500 }
+      )
     }
 
-    console.log('Calling Venice API:', veniceApiUrl)
+    console.log(`Processing chat for user ${userId}, estimated tokens: ${estimatedTokens}`)
 
     const response = await fetch(veniceApiUrl, {
       method: 'POST',
@@ -32,7 +60,7 @@ export async function POST(request: NextRequest) {
         'Accept': streaming ? 'text/event-stream' : 'application/json',
       },
       body: JSON.stringify({
-        model: 'venice-uncensored',  // Using Venice's flagship uncensored model
+        model: 'venice-uncensored',
         messages,
         stream: streaming,
         temperature: 0.7,
@@ -42,9 +70,16 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('API error:', response.status, response.statusText, errorText)
-      return new NextResponse(`API error: ${response.status} - ${errorText}`, { status: response.status })
+      console.error('Venice API error:', response.status, errorText)
+      return NextResponse.json(
+        { error: `API error: ${response.status}` },
+        { status: response.status }
+      )
     }
+
+    // Track the actual tokens used
+    let totalTokensUsed = 0
+    let fullResponse = ''
 
     if (streaming) {
       const encoder = new TextEncoder()
@@ -70,13 +105,43 @@ export async function POST(request: NextRequest) {
                 if (line.startsWith('data: ')) {
                   const data = line.slice(6)
                   if (data === '[DONE]') {
+                    // Calculate total tokens and track usage
+                    totalTokensUsed = countTokens(lastMessage) + countTokens(fullResponse)
+
+                    // Track token usage in database
+                    await trackTokenUsage({
+                      user_id: userId,
+                      tokens_used: totalTokensUsed,
+                      tokens_estimated: estimatedTokens,
+                      timestamp: new Date(),
+                      billing_period_start: subscriptionCheck.subscription.currentPeriodStart,
+                      billing_period_end: subscriptionCheck.subscription.currentPeriodEnd,
+                      chat_id: request.headers.get('X-Chat-Id') || undefined,
+                      message_id: crypto.randomUUID(),
+                      message_type: 'text',
+                      model_used: 'venice-uncensored',
+                    })
+
+                    // Check if we need to send usage alerts
+                    await checkUsageAlerts(userId)
+
+                    // Send final token count
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                      type: 'usage',
+                      tokensUsed: totalTokensUsed,
+                      subscription: subscriptionCheck.subscription
+                    })}\n\n`))
+
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'))
                     controller.close()
                     return
                   }
+
                   try {
                     const parsed = JSON.parse(data)
                     const content = parsed.choices?.[0]?.delta?.content || ''
                     if (content) {
+                      fullResponse += content
                       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`))
                     }
                   } catch (e) {
@@ -104,10 +169,39 @@ export async function POST(request: NextRequest) {
       })
     } else {
       const data = await response.json()
-      return NextResponse.json(data)
+      const responseContent = data.choices?.[0]?.message?.content || ''
+      totalTokensUsed = countTokens(lastMessage) + countTokens(responseContent)
+
+      // Track token usage
+      await trackTokenUsage({
+        user_id: userId,
+        tokens_used: totalTokensUsed,
+        tokens_estimated: estimatedTokens,
+        timestamp: new Date(),
+        billing_period_start: subscriptionCheck.subscription.currentPeriodStart,
+        billing_period_end: subscriptionCheck.subscription.currentPeriodEnd,
+        chat_id: request.headers.get('X-Chat-Id') || undefined,
+        message_id: crypto.randomUUID(),
+        message_type: 'text',
+        model_used: 'venice-uncensored',
+      })
+
+      // Check if we need to send usage alerts
+      await checkUsageAlerts(userId)
+
+      return NextResponse.json({
+        ...data,
+        usage: {
+          tokensUsed: totalTokensUsed,
+          subscription: subscriptionCheck.subscription,
+        },
+      })
     }
   } catch (error) {
     console.error('Chat API error:', error)
-    return new NextResponse('Internal Server Error', { status: 500 })
+    return NextResponse.json(
+      { error: 'Internal Server Error', code: 'SERVER_ERROR' },
+      { status: 500 }
+    )
   }
 }
