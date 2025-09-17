@@ -32,86 +32,42 @@ interface MessageContentProps {
 }
 
 function MessageContent({ content, isBot, messageId, typedMessageIds, isGenerating = false }: MessageContentProps) {
-  const [isStreaming, setIsStreaming] = useState(false)
-  const previousContentRef = useRef('')
-  const hasStartedTypingRef = useRef(false)
-  const noChangeCountRef = useRef(0)
-
-  useEffect(() => {
-    // For user messages, just show them immediately
-    if (!isBot) {
-      return
-    }
-
-    // If generation has stopped, immediately hide the dots
-    if (!isGenerating && hasStartedTypingRef.current) {
-      setIsStreaming(false)
-      typedMessageIds.add(messageId)
-      hasStartedTypingRef.current = false
-      noChangeCountRef.current = 0
-      previousContentRef.current = content
-      return
-    }
-
-    // Check if this is a streaming message (content is growing)
-    const isCurrentlyStreaming = content.length > previousContentRef.current.length &&
-                                 !typedMessageIds.has(messageId) &&
-                                 isGenerating
-
-    if (isCurrentlyStreaming) {
-      setIsStreaming(true)
-      hasStartedTypingRef.current = true
-      noChangeCountRef.current = 0
-    }
-
-    previousContentRef.current = content
-  }, [content, isBot, messageId, typedMessageIds, isGenerating])
-
-  // Direct display for streaming content (real-time updates)
+  // Direct display for all content - no typing animation or dots
   return (
-    <>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          code({ node, className, children, inline, ...props }: any) {
-            const match = /language-(\w+)/.exec(className || '')
-            const codeString = String(children).replace(/\n$/, '')
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        code({ node, className, children, inline, ...props }: any) {
+          const match = /language-(\w+)/.exec(className || '')
+          const codeString = String(children).replace(/\n$/, '')
 
-            if (!inline && match) {
-              return (
-                <CodeBlock
-                  code={codeString}
-                  language={match[1]}
-                  className="my-4"
-                />
-              )
-            }
-
+          if (!inline && match) {
             return (
-              <code
-                className={cn(
-                  "px-1.5 py-0.5 rounded-md",
-                  "bg-muted text-sm font-mono",
-                  className
-                )}
-                {...props}
-              >
-                {children}
-              </code>
+              <CodeBlock
+                code={codeString}
+                language={match[1]}
+                className="my-4"
+              />
             )
-          },
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-      {isStreaming && (
-        <span className="inline-flex items-center ml-1">
-          <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-          <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce mx-0.5" style={{ animationDelay: '150ms' }} />
-          <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-        </span>
-      )}
-    </>
+          }
+
+          return (
+            <code
+              className={cn(
+                "px-1.5 py-0.5 rounded-md",
+                "bg-muted text-sm font-mono",
+                className
+              )}
+              {...props}
+            >
+              {children}
+            </code>
+          )
+        },
+      }}
+    >
+      {content}
+    </ReactMarkdown>
   )
 }
 
