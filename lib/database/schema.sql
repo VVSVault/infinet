@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS users_subscription (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(255) UNIQUE NOT NULL, -- Clerk user ID
-  tier VARCHAR(50) NOT NULL CHECK (tier IN ('premium', 'limitless', 'trial')),
+  tier VARCHAR(50) NOT NULL CHECK (tier IN ('starter', 'premium', 'limitless', 'trial')),
   stripe_customer_id VARCHAR(255) UNIQUE,
   stripe_subscription_id VARCHAR(255) UNIQUE,
   current_period_start TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -118,7 +118,8 @@ BEGIN
 
     -- Set token limit based on tier
     CASE v_tier
-        WHEN 'premium' THEN v_token_limit := 25000;
+        WHEN 'starter' THEN v_token_limit := 10000;
+        WHEN 'premium' THEN v_token_limit := 50000;
         WHEN 'limitless' THEN v_token_limit := 100000;
         WHEN 'trial' THEN v_token_limit := 1000;
         ELSE v_token_limit := 0;

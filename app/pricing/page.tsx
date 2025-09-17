@@ -85,7 +85,7 @@ export default function PricingPage() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-8">
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-8">
           {Object.values(SUBSCRIPTION_TIERS).map((tier) => (
             <Card
               key={tier.id}
@@ -206,7 +206,8 @@ export default function PricingPage() {
             <div>
               <h3 className="font-semibold mb-2">Monthly allowances:</h3>
               <ul className="space-y-1 text-sm text-muted-foreground">
-                <li>• Premium (25,000 tokens): ~250 typical conversations</li>
+                <li>• Starter (10,000 tokens): ~100 typical conversations</li>
+                <li>• Premium (50,000 tokens): ~500 typical conversations</li>
                 <li>• Limitless (100,000 tokens): ~1,000 typical conversations</li>
               </ul>
             </div>

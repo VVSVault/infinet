@@ -7,6 +7,7 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 // Stripe Price IDs (you'll need to create these in Stripe Dashboard)
 export const STRIPE_PRICE_IDS = {
+  starter: process.env.STRIPE_STARTER_PRICE_ID || 'price_starter_monthly',
   premium: process.env.STRIPE_PREMIUM_PRICE_ID || 'price_premium_monthly',
   limitless: process.env.STRIPE_LIMITLESS_PRICE_ID || 'price_limitless_monthly',
   trial: 'trial', // No price ID for trial

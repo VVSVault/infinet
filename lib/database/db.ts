@@ -3,7 +3,7 @@ import { SUBSCRIPTION_TIERS } from '../subscription-tiers'
 
 export interface UserSubscription {
   user_id: string
-  tier: 'premium' | 'limitless' | 'trial'
+  tier: 'starter' | 'premium' | 'limitless' | 'trial'
   stripe_customer_id?: string
   stripe_subscription_id?: string
   current_period_start: Date
@@ -163,7 +163,20 @@ async function updateMonthlyUsageCache(userId: string): Promise<void> {
 export async function checkRateLimit(userId: string, tier: string): Promise<boolean> {
   if (tier === 'limitless') return true // Unlimited requests
 
-  const limit = tier === 'premium' ? 60 : 20 // 60 for premium, 20 for trial
+  let limit: number
+  switch (tier) {
+    case 'starter':
+      limit = 30
+      break
+    case 'premium':
+      limit = 60
+      break
+    case 'trial':
+      limit = 20
+      break
+    default:
+      limit = 20
+  }
 
   try {
     const result = await sql`
@@ -202,8 +215,10 @@ export async function hasExceededTokenLimit(userId: string): Promise<boolean> {
 // Get token limit for tier
 function getTokenLimit(tier: string): number {
   switch (tier) {
+    case 'starter':
+      return 10000
     case 'premium':
-      return 25000
+      return 50000
     case 'limitless':
       return 100000
     case 'trial':

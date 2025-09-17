@@ -11,14 +11,30 @@ export interface SubscriptionTier {
 }
 
 export const SUBSCRIPTION_TIERS: Record<string, SubscriptionTier> = {
+  starter: {
+    id: 'starter',
+    name: 'Starter',
+    price: 10,
+    tokenLimit: 10000,
+    requestsPerHour: 30,
+    features: [
+      '10,000 tokens per month',
+      '30 requests per hour',
+      'Standard processing speed',
+      'Community support',
+      'Text chat only',
+      'Basic AI models',
+    ],
+    description: 'Great for trying out Infinet',
+  },
   premium: {
     id: 'premium',
     name: 'Premium',
     price: 50,
-    tokenLimit: 25000,
+    tokenLimit: 50000,
     requestsPerHour: 60,
     features: [
-      '25,000 tokens per month',
+      '50,000 tokens per month',
       '60 requests per hour',
       'Standard processing speed',
       'Email support',
@@ -26,6 +42,7 @@ export const SUBSCRIPTION_TIERS: Record<string, SubscriptionTier> = {
       'Image generation included',
     ],
     description: 'Perfect for individuals and small teams',
+    popular: true,
   },
   limitless: {
     id: 'limitless',
@@ -43,7 +60,6 @@ export const SUBSCRIPTION_TIERS: Record<string, SubscriptionTier> = {
       'Custom integrations',
     ],
     description: 'For power users and businesses',
-    popular: true,
   },
 }
 

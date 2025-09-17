@@ -6,18 +6,29 @@ Infinet is a premium, paid-only AI service with NO FREE TIER. Users must pay to 
 ## System Features
 
 ### Subscription Tiers
-1. **Premium Tier ($50/month)**
-   - 25,000 tokens per month
+1. **Starter Tier ($10/month)**
+   - 10,000 tokens per month
+   - 30 requests per hour limit
+   - Standard processing
+   - Community support
+   - Text chat only
+   - Basic AI models
+
+2. **Premium Tier ($50/month)**
+   - 50,000 tokens per month
    - 60 requests per hour limit
    - Standard processing
    - Email support
+   - All AI models access
+   - Image generation included
 
-2. **Limitless Tier ($150/month)**
+3. **Limitless Tier ($150/month)**
    - 100,000 tokens per month
    - Unlimited requests per hour
    - Priority processing
    - Priority support
    - Advanced analytics
+   - API access
 
 ### Key Policies
 - ❌ NO FREE TIER - Payment required immediately
@@ -33,7 +44,8 @@ Infinet is a premium, paid-only AI service with NO FREE TIER. Users must pay to 
 
 1. Create a Stripe account at https://stripe.com
 2. Get your API keys from the Stripe Dashboard
-3. Create two products:
+3. Create three products:
+   - Starter: $10/month
    - Premium: $50/month
    - Limitless: $150/month
 4. Copy the price IDs for each product
@@ -68,6 +80,7 @@ Add these to your `.env.local` file:
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_STARTER_PRICE_ID=price_...
 STRIPE_PREMIUM_PRICE_ID=price_...
 STRIPE_LIMITLESS_PRICE_ID=price_...
 
@@ -119,7 +132,8 @@ POSTGRES_DATABASE=...
 - File processing: 200 tokens per file
 
 ### Monthly Allowances
-- Premium (25,000): ~250 typical conversations
+- Starter (10,000): ~100 typical conversations
+- Premium (50,000): ~500 typical conversations
 - Limitless (100,000): ~1,000 typical conversations
 
 ## Testing the System
