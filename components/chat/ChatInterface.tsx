@@ -379,7 +379,7 @@ export function ChatInterface() {
         </div>
       </div>
 
-      <MessageList messages={currentChat.messages} loadingMessage={loadingMessage} />
+      <MessageList messages={currentChat.messages} loadingMessage={loadingMessage} isGenerating={isGenerating || isLoading} />
 
       {showUpgradePrompt && (
         <UpgradePrompt

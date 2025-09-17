@@ -20,6 +20,7 @@ import {
 interface MessageListProps {
   messages: Message[]
   loadingMessage?: string
+  isGenerating?: boolean
 }
 
 interface MessageContentProps {
@@ -27,9 +28,10 @@ interface MessageContentProps {
   isBot: boolean
   messageId: string
   typedMessageIds: Set<string>
+  isGenerating?: boolean
 }
 
-function MessageContent({ content, isBot, messageId, typedMessageIds }: MessageContentProps) {
+function MessageContent({ content, isBot, messageId, typedMessageIds, isGenerating = false }: MessageContentProps) {
   const [isStreaming, setIsStreaming] = useState(false)
   const previousContentRef = useRef('')
   const hasStartedTypingRef = useRef(false)
@@ -41,43 +43,29 @@ function MessageContent({ content, isBot, messageId, typedMessageIds }: MessageC
       return
     }
 
+    // If generation has stopped, immediately hide the dots
+    if (!isGenerating && hasStartedTypingRef.current) {
+      setIsStreaming(false)
+      typedMessageIds.add(messageId)
+      hasStartedTypingRef.current = false
+      noChangeCountRef.current = 0
+      previousContentRef.current = content
+      return
+    }
+
     // Check if this is a streaming message (content is growing)
     const isCurrentlyStreaming = content.length > previousContentRef.current.length &&
-                                 !typedMessageIds.has(messageId)
+                                 !typedMessageIds.has(messageId) &&
+                                 isGenerating
 
     if (isCurrentlyStreaming) {
       setIsStreaming(true)
       hasStartedTypingRef.current = true
       noChangeCountRef.current = 0
-    } else if (hasStartedTypingRef.current && content.length > 0) {
-      // Check if content hasn't changed for a few cycles
-      if (content === previousContentRef.current) {
-        noChangeCountRef.current++
-        // After no changes for 2 cycles (about 100ms), consider streaming complete
-        if (noChangeCountRef.current >= 2) {
-          setIsStreaming(false)
-          typedMessageIds.add(messageId)
-          hasStartedTypingRef.current = false
-          noChangeCountRef.current = 0
-        }
-      } else {
-        noChangeCountRef.current = 0
-      }
     }
 
     previousContentRef.current = content
-
-    // Set a timeout to ensure dots disappear even if no more updates come
-    const timeout = setTimeout(() => {
-      if (hasStartedTypingRef.current && content.length > 0) {
-        setIsStreaming(false)
-        typedMessageIds.add(messageId)
-        hasStartedTypingRef.current = false
-      }
-    }, 500)
-
-    return () => clearTimeout(timeout)
-  }, [content, isBot, messageId, typedMessageIds])
+  }, [content, isBot, messageId, typedMessageIds, isGenerating])
 
   // Direct display for streaming content (real-time updates)
   return (
@@ -127,7 +115,7 @@ function MessageContent({ content, isBot, messageId, typedMessageIds }: MessageC
   )
 }
 
-export function MessageList({ messages, loadingMessage }: MessageListProps) {
+export function MessageList({ messages, loadingMessage, isGenerating = false }: MessageListProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [expandedImage, setExpandedImage] = useState<string | null>(null)
@@ -275,6 +263,7 @@ export function MessageList({ messages, loadingMessage }: MessageListProps) {
                         isBot={message.role !== 'user'}
                         messageId={message.id}
                         typedMessageIds={typedMessageIds}
+                        isGenerating={isGenerating}
                       />
                     )}
                   )}
