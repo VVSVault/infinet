@@ -47,7 +47,7 @@ export function ChatInterface() {
 
       const interval = setInterval(() => {
         setLoadingMessage(messageGenerator.next().value || '')
-      }, 2000) // Change message every 2 seconds
+      }, 1000) // Change message every 1 second
 
       return () => clearInterval(interval)
     } else {

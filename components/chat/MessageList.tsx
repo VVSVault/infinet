@@ -239,12 +239,23 @@ export function MessageList({ messages, loadingMessage }: MessageListProps) {
                       )}
                     </div>
                   ) : (
-                    <MessageContent
-                      content={message.content || (loadingMessage ? `_${loadingMessage}_` : '_Thinking..._')}
-                      isBot={message.role !== 'user'}
-                      messageId={message.id}
-                      typedMessageIds={typedMessageIds}
-                    />
+                    {!message.content && loadingMessage && message.role === 'assistant' ? (
+                      <div className="flex items-center gap-2">
+                        <span className="italic text-muted-foreground">{loadingMessage}</span>
+                        <span className="inline-flex items-center">
+                          <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce mx-0.5" style={{ animationDelay: '150ms' }} />
+                          <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </span>
+                      </div>
+                    ) : (
+                      <MessageContent
+                        content={message.content || '_Thinking..._'}
+                        isBot={message.role !== 'user'}
+                        messageId={message.id}
+                        typedMessageIds={typedMessageIds}
+                      />
+                    )}
                   )}
                 </div>
                 </div>
