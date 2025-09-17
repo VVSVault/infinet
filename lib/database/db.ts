@@ -1,9 +1,9 @@
-import { sql } from '@vercel/postgres'
+import { sql } from './postgres-client'
 import { SUBSCRIPTION_TIERS } from '../subscription-tiers'
 
 export interface UserSubscription {
   user_id: string
-  tier: 'starter' | 'premium' | 'limitless' | 'trial'
+  tier: 'free' | 'starter' | 'premium' | 'limitless' | 'trial'
   stripe_customer_id?: string
   stripe_subscription_id?: string
   current_period_start: Date
@@ -27,12 +27,12 @@ export interface TokenUsage {
 
 export interface MonthlyUsageCache {
   user_id: string
-  billing_period_start: Date
-  billing_period_end: Date
+  billing_period_start: string | Date
+  billing_period_end: string | Date
   total_tokens: number
   total_requests: number
   tokens_remaining: number
-  last_updated: Date
+  last_updated: string | Date
 }
 
 // Get user subscription
@@ -44,10 +44,35 @@ export async function getUserSubscription(userId: string): Promise<UserSubscript
       AND status IN ('active', 'trial')
       LIMIT 1
     `
-    return result.rows[0] as UserSubscription || null
+
+    // If no subscription found, return a free tier subscription
+    if (!result.rows[0]) {
+      const now = new Date()
+      const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // 30 days
+
+      return {
+        user_id: userId,
+        tier: 'free',
+        status: 'active',
+        current_period_start: now,
+        current_period_end: periodEnd,
+      }
+    }
+
+    return result.rows[0] as UserSubscription
   } catch (error) {
     console.error('Error fetching user subscription:', error)
-    return null
+    // Return free tier on error
+    const now = new Date()
+    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+    return {
+      user_id: userId,
+      tier: 'free',
+      status: 'active',
+      current_period_start: now,
+      current_period_end: periodEnd,
+    }
   }
 }
 
@@ -60,8 +85,8 @@ export async function upsertSubscription(subscription: UserSubscription): Promis
         current_period_start, current_period_end, status, trial_ends_at
       ) VALUES (
         ${subscription.user_id}, ${subscription.tier}, ${subscription.stripe_customer_id},
-        ${subscription.stripe_subscription_id}, ${subscription.current_period_start},
-        ${subscription.current_period_end}, ${subscription.status}, ${subscription.trial_ends_at}
+        ${subscription.stripe_subscription_id}, ${subscription.current_period_start?.toISOString()},
+        ${subscription.current_period_end?.toISOString()}, ${subscription.status}, ${subscription.trial_ends_at?.toISOString()}
       )
       ON CONFLICT (user_id) DO UPDATE SET
         tier = EXCLUDED.tier,
@@ -90,7 +115,7 @@ export async function trackTokenUsage(usage: TokenUsage): Promise<void> {
         message_type, model_used, cost_per_token
       ) VALUES (
         ${usage.user_id}, ${usage.tokens_used}, ${usage.tokens_estimated},
-        ${usage.timestamp}, ${usage.billing_period_start}, ${usage.billing_period_end},
+        ${usage.timestamp.toISOString()}, ${usage.billing_period_start?.toISOString()}, ${usage.billing_period_end?.toISOString()},
         ${usage.chat_id}, ${usage.message_id}, ${usage.message_type}, ${usage.model_used},
         ${calculateCostPerToken(usage.user_id)}
       )
@@ -113,21 +138,44 @@ export async function getMonthlyUsage(userId: string): Promise<MonthlyUsageCache
     const result = await sql`
       SELECT
         ${userId} as user_id,
-        ${subscription.current_period_start} as billing_period_start,
-        ${subscription.current_period_end} as billing_period_end,
+        ${subscription.current_period_start?.toISOString()} as billing_period_start,
+        ${subscription.current_period_end?.toISOString()} as billing_period_end,
         COALESCE(SUM(tokens_used), 0) as total_tokens,
         COUNT(*) as total_requests,
         ${getTokenLimit(subscription.tier)} - COALESCE(SUM(tokens_used), 0) as tokens_remaining
       FROM token_usage
       WHERE user_id = ${userId}
-        AND timestamp >= ${subscription.current_period_start}
-        AND timestamp < ${subscription.current_period_end}
+        AND timestamp >= ${subscription.current_period_start?.toISOString()}
+        AND timestamp < ${subscription.current_period_end?.toISOString()}
     `
 
-    return result.rows[0] as MonthlyUsageCache || null
+    const usage = result.rows[0] as MonthlyUsageCache
+
+    console.log('Monthly usage for user:', {
+      userId,
+      tier: subscription.tier,
+      tokenLimit: getTokenLimit(subscription.tier),
+      totalTokensUsed: usage?.total_tokens || 0,
+      tokensRemaining: usage?.tokens_remaining || getTokenLimit(subscription.tier),
+      totalRequests: usage?.total_requests || 0
+    })
+
+    return usage || null
   } catch (error) {
     console.error('Error fetching monthly usage:', error)
-    return null
+    // Return default free tier usage on error (for new users)
+    const now = new Date()
+    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+    return {
+      user_id: userId,
+      billing_period_start: now,
+      billing_period_end: periodEnd,
+      total_tokens: 0,
+      total_requests: 0,
+      tokens_remaining: 500, // Free tier limit
+      last_updated: now
+    }
   }
 }
 
@@ -142,7 +190,9 @@ async function updateMonthlyUsageCache(userId: string): Promise<void> {
         user_id, billing_period_start, billing_period_end,
         total_tokens, total_requests, tokens_remaining, last_updated
       ) VALUES (
-        ${usage.user_id}, ${usage.billing_period_start}, ${usage.billing_period_end},
+        ${usage.user_id},
+        ${usage.billing_period_start instanceof Date ? usage.billing_period_start.toISOString() : usage.billing_period_start},
+        ${usage.billing_period_end instanceof Date ? usage.billing_period_end.toISOString() : usage.billing_period_end},
         ${usage.total_tokens}, ${usage.total_requests}, ${usage.tokens_remaining},
         CURRENT_TIMESTAMP
       )
@@ -165,6 +215,9 @@ export async function checkRateLimit(userId: string, tier: string): Promise<bool
 
   let limit: number
   switch (tier) {
+    case 'free':
+      limit = 10
+      break
     case 'starter':
       limit = 30
       break
@@ -175,7 +228,7 @@ export async function checkRateLimit(userId: string, tier: string): Promise<bool
       limit = 20
       break
     default:
-      limit = 20
+      limit = 10
   }
 
   try {
@@ -209,12 +262,15 @@ export async function logRequest(userId: string, endpoint: string): Promise<void
 // Check if user has exceeded token limit
 export async function hasExceededTokenLimit(userId: string): Promise<boolean> {
   const usage = await getMonthlyUsage(userId)
-  return usage ? usage.tokens_remaining <= 0 : true
+  // If no usage data exists (new user), they haven't exceeded the limit yet
+  return usage ? usage.tokens_remaining <= 0 : false
 }
 
 // Get token limit for tier
 function getTokenLimit(tier: string): number {
   switch (tier) {
+    case 'free':
+      return 500
     case 'starter':
       return 10000
     case 'premium':
@@ -224,7 +280,7 @@ function getTokenLimit(tier: string): number {
     case 'trial':
       return 1000
     default:
-      return 0
+      return 500 // Default to free tier
   }
 }
 
@@ -260,7 +316,7 @@ export async function checkUsageAlerts(userId: string): Promise<void> {
         SELECT id FROM usage_alerts
         WHERE user_id = ${userId}
           AND alert_type = ${threshold.type}
-          AND billing_period_start = ${subscription.current_period_start}
+          AND billing_period_start = ${subscription.current_period_start?.toISOString()}
         LIMIT 1
       `
 
@@ -272,7 +328,7 @@ export async function checkUsageAlerts(userId: string): Promise<void> {
             billing_period_start, sent_at
           ) VALUES (
             ${userId}, ${threshold.type}, ${usage.total_tokens},
-            ${limit}, ${subscription.current_period_start}, CURRENT_TIMESTAMP
+            ${limit}, ${subscription.current_period_start?.toISOString()}, CURRENT_TIMESTAMP
           )
         `
 

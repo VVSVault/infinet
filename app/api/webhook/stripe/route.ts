@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, verifyWebhookSignature, STRIPE_WEBHOOK_EVENTS } from '@/lib/stripe-config'
-import { upsertSubscription } from '@/lib/database/db'
+import {
+  getUserByClerkId,
+  getUserByStripeCustomerId,
+  updateUserSubscription,
+  logSubscriptionEvent,
+  resetMonthlyUsage
+} from '@/lib/database'
+import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers'
 import Stripe from 'stripe'
 
 export async function POST(request: NextRequest) {
@@ -57,21 +64,22 @@ export async function POST(request: NextRequest) {
           tier = 'limitless'
         }
 
-        // Get user ID from metadata
-        const userId = subscription.metadata?.userId
+        // Get user by stripe customer ID
+        const user = await getUserByStripeCustomerId(subscription.customer as string)
 
-        if (!userId) {
-          console.error('No userId in subscription metadata')
+        if (!user) {
+          console.error('No user found for Stripe customer:', subscription.customer)
           return NextResponse.json(
-            { error: 'Missing user ID in subscription' },
+            { error: 'User not found for customer' },
             { status: 400 }
           )
         }
 
         // Map Stripe status to our status
-        let status: 'active' | 'canceled' | 'past_due' | 'trial' | 'suspended'
+        let status: 'active' | 'inactive' | 'canceled' | 'past_due'
         switch (subscription.status) {
           case 'active':
+          case 'trialing':
             status = 'active'
             break
           case 'past_due':
@@ -81,79 +89,109 @@ export async function POST(request: NextRequest) {
           case 'unpaid':
             status = 'canceled'
             break
-          case 'trialing':
-            status = 'trial'
-            break
           default:
-            status = 'suspended'
+            status = 'inactive'
         }
 
-        // Save to database
-        await upsertSubscription({
-          user_id: userId,
-          tier,
-          stripe_customer_id: subscription.customer as string,
+        // Get token limit for the tier
+        const tokenLimit = SUBSCRIPTION_TIERS[tier]?.tokenLimit || 0
+
+        // Update user subscription
+        await updateUserSubscription(user.id, {
+          subscription_tier: tier,
+          subscription_status: status,
           stripe_subscription_id: subscription.id,
-          current_period_start: new Date(subscription.current_period_start * 1000),
-          current_period_end: new Date(subscription.current_period_end * 1000),
-          status,
-          trial_ends_at: subscription.trial_end
-            ? new Date(subscription.trial_end * 1000)
-            : undefined,
+          tokens_limit: tokenLimit,
+          subscription_period_start: new Date((subscription as any).current_period_start * 1000),
+          subscription_period_end: new Date((subscription as any).current_period_end * 1000),
         })
 
-        console.log(`Subscription ${event.type === STRIPE_WEBHOOK_EVENTS.SUBSCRIPTION_CREATED ? 'created' : 'updated'} for user ${userId}`)
+        // If it's a new period, reset usage
+        if (event.type === STRIPE_WEBHOOK_EVENTS.SUBSCRIPTION_UPDATED) {
+          const periodStart = new Date((subscription as any).current_period_start * 1000)
+          if (user.subscription_period_start && periodStart > user.subscription_period_start) {
+            await resetMonthlyUsage(user.id)
+          }
+        }
+
+        // Log the event
+        await logSubscriptionEvent(
+          user.id,
+          event.type,
+          tier,
+          status,
+          event.id,
+          { price_id: priceId }
+        )
+
+        console.log(`Subscription ${event.type === STRIPE_WEBHOOK_EVENTS.SUBSCRIPTION_CREATED ? 'created' : 'updated'} for user ${user.email}`)
         break
       }
 
       case STRIPE_WEBHOOK_EVENTS.SUBSCRIPTION_DELETED: {
         const subscription = event.data.object as Stripe.Subscription
-        const userId = subscription.metadata?.userId
 
-        if (!userId) {
-          console.error('No userId in subscription metadata')
+        // Get user by stripe customer ID
+        const user = await getUserByStripeCustomerId(subscription.customer as string)
+
+        if (!user) {
+          console.error('No user found for Stripe customer:', subscription.customer)
           return NextResponse.json(
-            { error: 'Missing user ID in subscription' },
+            { error: 'User not found for customer' },
             { status: 400 }
           )
         }
 
-        // Update subscription status to canceled
-        await upsertSubscription({
-          user_id: userId,
-          tier: 'starter', // Default tier, doesn't matter since it's canceled
-          stripe_customer_id: subscription.customer as string,
+        // Update subscription status to canceled and reset to free tier
+        await updateUserSubscription(user.id, {
+          subscription_tier: 'free',
+          subscription_status: 'inactive',
           stripe_subscription_id: subscription.id,
-          current_period_start: new Date(subscription.current_period_start * 1000),
-          current_period_end: new Date(subscription.current_period_end * 1000),
-          status: 'canceled',
+          tokens_limit: 0,
+          subscription_period_end: new Date((subscription as any).current_period_end * 1000),
         })
 
-        console.log(`Subscription canceled for user ${userId}`)
+        // Log the event
+        await logSubscriptionEvent(
+          user.id,
+          event.type,
+          'free',
+          'canceled',
+          event.id,
+          { previous_subscription_id: subscription.id }
+        )
+
+        console.log(`Subscription canceled for user ${user.email}`)
         break
       }
 
       case STRIPE_WEBHOOK_EVENTS.INVOICE_PAYMENT_FAILED: {
         const invoice = event.data.object as Stripe.Invoice
-        const subscriptionId = invoice.subscription as string
+        const subscriptionId = (invoice as any).subscription as string
 
         if (subscriptionId) {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-          const userId = subscription.metadata?.userId
 
-          if (userId) {
+          // Get user by stripe customer ID
+          const user = await getUserByStripeCustomerId(subscription.customer as string)
+
+          if (user) {
             // Update subscription status to past_due
-            await upsertSubscription({
-              user_id: userId,
-              tier: 'starter', // Will be overridden by actual tier
-              stripe_customer_id: subscription.customer as string,
-              stripe_subscription_id: subscription.id,
-              current_period_start: new Date(subscription.current_period_start * 1000),
-              current_period_end: new Date(subscription.current_period_end * 1000),
-              status: 'past_due',
+            await updateUserSubscription(user.id, {
+              subscription_status: 'past_due',
             })
 
-            console.log(`Payment failed for user ${userId}`)
+            // Log the event
+            await logSubscriptionEvent(
+              user.id,
+              event.type,
+              user.subscription_tier,
+              'past_due',
+              event.id,
+              { invoice_id: invoice.id, attempt_count: invoice.attempt_count }
+            )
+
+            console.log(`Payment failed for user ${user.email}`)
           }
         }
         break
@@ -161,11 +199,23 @@ export async function POST(request: NextRequest) {
 
       case STRIPE_WEBHOOK_EVENTS.TRIAL_WILL_END: {
         const subscription = event.data.object as Stripe.Subscription
-        const userId = subscription.metadata?.userId
 
-        if (userId) {
-          console.log(`Trial ending soon for user ${userId}`)
+        // Get user by stripe customer ID
+        const user = await getUserByStripeCustomerId(subscription.customer as string)
+
+        if (user) {
+          console.log(`Trial ending soon for user ${user.email}`)
           // You could send an email notification here
+
+          // Log the event
+          await logSubscriptionEvent(
+            user.id,
+            event.type,
+            user.subscription_tier,
+            user.subscription_status,
+            event.id,
+            { trial_end: subscription.trial_end }
+          )
         }
         break
       }

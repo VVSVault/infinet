@@ -11,6 +11,22 @@ export interface SubscriptionTier {
 }
 
 export const SUBSCRIPTION_TIERS: Record<string, SubscriptionTier> = {
+  free: {
+    id: 'free',
+    name: 'Free',
+    price: 0,
+    tokenLimit: 500,
+    requestsPerHour: 10,
+    features: [
+      '500 tokens per month',
+      '10 requests per hour',
+      'Standard processing speed',
+      'Community support',
+      'Text chat only',
+      'Basic AI models',
+    ],
+    description: 'Get started with Infinet for free',
+  },
   starter: {
     id: 'starter',
     name: 'Starter',

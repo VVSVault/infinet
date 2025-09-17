@@ -2,6 +2,7 @@
 
 import { useChatStore } from '@/lib/store'
 import { Button } from '@/components/ui/button'
+import { useUser } from '@clerk/nextjs'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
@@ -9,11 +10,17 @@ import {
   Search,
   MessageSquare,
   Folder,
+  FolderPlus,
+  ChevronRight,
+  ChevronDown,
   X,
   MoreVertical,
   Trash,
   Edit,
+  Crown,
+  Archive,
 } from 'lucide-react'
+import Link from 'next/link'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
@@ -21,6 +28,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
   Dialog,
@@ -41,6 +51,15 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
   const [chatToDelete, setChatToDelete] = useState<string | null>(null)
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
+  const [newFolderDialogOpen, setNewFolderDialogOpen] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
+  const [editingProjectName, setEditingProjectName] = useState('')
+
+  const { user } = useUser()
+  const userEmail = user?.emailAddresses?.[0]?.emailAddress
+  const isDeveloper = userEmail?.toLowerCase() === 'tannercarlson@vvsvault.com'
 
   const {
     chats,
@@ -51,6 +70,10 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
     setCurrentChat,
     updateChatTitle,
     searchChats,
+    createProject,
+    deleteProject,
+    updateProject,
+    assignChatToProject,
   } = useChatStore()
 
   const filteredChats = searchQuery ? searchChats(searchQuery) : chats
@@ -86,6 +109,41 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
     setCurrentChat(newChatId)
   }
 
+  const handleCreateFolder = () => {
+    if (newFolderName.trim()) {
+      createProject(newFolderName.trim())
+      setNewFolderName('')
+      setNewFolderDialogOpen(false)
+    }
+  }
+
+  const toggleFolder = (folderId: string) => {
+    const newCollapsed = new Set(collapsedFolders)
+    if (newCollapsed.has(folderId)) {
+      newCollapsed.delete(folderId)
+    } else {
+      newCollapsed.add(folderId)
+    }
+    setCollapsedFolders(newCollapsed)
+  }
+
+  const handleStartEditProject = (projectId: string, currentName: string) => {
+    setEditingProjectId(projectId)
+    setEditingProjectName(currentName)
+  }
+
+  const handleSaveProjectEdit = () => {
+    if (editingProjectId && editingProjectName.trim()) {
+      updateProject(editingProjectId, { name: editingProjectName.trim() })
+      setEditingProjectId(null)
+      setEditingProjectName('')
+    }
+  }
+
+  const handleDeleteProject = (projectId: string) => {
+    deleteProject(projectId)
+  }
+
   // Group chats by project
   const chatsByProject = filteredChats.reduce((acc, chat) => {
     const key = chat.projectId || 'default'
@@ -98,14 +156,25 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
     <>
       <div
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-72 bg-background border-r transition-transform lg:relative lg:translate-x-0',
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+          'w-72 bg-background border-r transition-all duration-300',
+          'fixed inset-y-0 left-0 z-50 lg:relative lg:z-0',
+          isOpen
+            ? 'translate-x-0'
+            : '-translate-x-full lg:w-0 lg:translate-x-0 lg:overflow-hidden'
         )}
       >
         <div className="flex h-full flex-col">
           <div className="flex h-14 items-center justify-between border-b px-4">
             <span className="font-semibold">Chats</span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setNewFolderDialogOpen(true)}
+                title="New Folder"
+              >
+                <FolderPlus className="h-4 w-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -138,18 +207,165 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
           </div>
 
           <ScrollArea className="flex-1 px-4">
-            <div className="space-y-4 pb-4">
+            <div className="space-y-2 pb-4">
+              {/* Show folders first */}
+              {projects.map((project) => {
+                const folderChats = chats.filter(chat => chat.projectId === project.id)
+                const isCollapsed = collapsedFolders.has(project.id)
+
+                return (
+                  <div key={project.id} className="space-y-1">
+                    <div className="group flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-accent">
+                      <div
+                        className="flex items-center gap-2 flex-1 cursor-pointer"
+                        onClick={() => toggleFolder(project.id)}
+                      >
+                        {isCollapsed ? (
+                          <ChevronRight className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                        <Folder className="h-4 w-4" />
+                        {editingProjectId === project.id ? (
+                          <Input
+                            value={editingProjectName}
+                            onChange={(e) => setEditingProjectName(e.target.value)}
+                            onBlur={handleSaveProjectEdit}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveProjectEdit()
+                              if (e.key === 'Escape') {
+                                setEditingProjectId(null)
+                                setEditingProjectName('')
+                              }
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-6 px-1 flex-1"
+                            autoFocus
+                          />
+                        ) : (
+                          <span className="text-sm font-medium flex-1">
+                            {project.name} ({folderChats.length})
+                          </span>
+                        )}
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                          >
+                            <MoreVertical className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleStartEditProject(project.id, project.name)}
+                          >
+                            <Edit className="mr-2 h-3 w-3" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteProject(project.id)}
+                            className="text-destructive"
+                          >
+                            <Trash className="mr-2 h-3 w-3" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {!isCollapsed && (
+                      <div className="ml-6 space-y-1">
+                        {folderChats.map((chat) => (
+                          <div
+                            key={chat.id}
+                            className={cn(
+                              'group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer',
+                              currentChatId === chat.id && 'bg-accent'
+                            )}
+                            onClick={() => setCurrentChat(chat.id)}
+                          >
+                            <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                            {editingChatId === chat.id ? (
+                              <Input
+                                value={editingTitle}
+                                onChange={(e) => setEditingTitle(e.target.value)}
+                                onBlur={handleSaveEdit}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveEdit()
+                                  if (e.key === 'Escape') handleCancelEdit()
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-6 px-1"
+                                autoFocus
+                              />
+                            ) : (
+                              <span className="text-sm truncate flex-1">
+                                {chat.title}
+                              </span>
+                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleStartEdit(chat.id, chat.title)
+                                  }}
+                                >
+                                  <Edit className="mr-2 h-3 w-3" />
+                                  Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    assignChatToProject(chat.id, undefined)
+                                  }}
+                                >
+                                  <Archive className="mr-2 h-3 w-3" />
+                                  Move out
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setChatToDelete(chat.id)
+                                    setDeleteDialogOpen(true)
+                                  }}
+                                  className="text-destructive"
+                                >
+                                  <Trash className="mr-2 h-3 w-3" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              {/* Show chats without folders */}
               {Object.entries(chatsByProject).map(([projectId, projectChats]) => {
                 const project = projects.find((p) => p.id === projectId)
 
+                // Only show chats that don't have a project
+                if (projectId !== 'default' || project) return null
+
                 return (
                   <div key={projectId}>
-                    {project && (
-                      <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
-                        <Folder className="h-3 w-3" />
-                        <span>{project.name}</span>
-                      </div>
-                    )}
 
                     <div className="space-y-1">
                       {projectChats.map((chat) => (
@@ -203,6 +419,27 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                                 <Edit className="mr-2 h-4 w-4" />
                                 Rename
                               </DropdownMenuItem>
+                              {projects.length > 0 && (
+                                <DropdownMenuSub>
+                                  <DropdownMenuSubTrigger>
+                                    <Folder className="mr-2 h-4 w-4" />
+                                    Move to Folder
+                                  </DropdownMenuSubTrigger>
+                                  <DropdownMenuSubContent>
+                                    {projects.map((project) => (
+                                      <DropdownMenuItem
+                                        key={project.id}
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          assignChatToProject(chat.id, project.id)
+                                        }}
+                                      >
+                                        {project.name}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuSubContent>
+                                </DropdownMenuSub>
+                              )}
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation()
@@ -224,6 +461,31 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
               })}
             </div>
           </ScrollArea>
+
+          {/* Upgrade to Premium button at bottom - hidden for developers */}
+          {!isDeveloper && (
+            <div className="border-t p-4">
+              <Link href="/pricing" className="block">
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 bg-gradient-to-r from-primary/10 to-primary/20 hover:from-primary/20 hover:to-primary/30 border-primary/20"
+                >
+                  <Crown className="h-4 w-4 text-primary" />
+                  Upgrade to Premium
+                </Button>
+              </Link>
+            </div>
+          )}
+
+          {/* Developer indicator */}
+          {isDeveloper && (
+            <div className="border-t p-4">
+              <div className="text-center text-sm text-muted-foreground">
+                <Crown className="h-4 w-4 text-primary inline-block mr-1" />
+                Developer Mode Active
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -245,6 +507,45 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
               onClick={handleDeleteChat}
             >
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newFolderDialogOpen} onOpenChange={setNewFolderDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Folder</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="folder-name" className="text-sm font-medium">
+                Folder Name
+              </label>
+              <Input
+                id="folder-name"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Enter folder name"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateFolder()
+                }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setNewFolderDialogOpen(false)
+                setNewFolderName('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateFolder} disabled={!newFolderName.trim()}>
+              Create Folder
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -16,7 +16,11 @@ export async function POST(request: NextRequest) {
 
     if (!userId) {
       return NextResponse.json(
-        { error: 'Unauthorized', code: 'NO_AUTH' },
+        {
+          error: 'Authentication required',
+          message: 'Please sign in to use the chat API',
+          code: 'NO_AUTH'
+        },
         { status: 401 }
       )
     }
@@ -39,6 +43,12 @@ export async function POST(request: NextRequest) {
     // Estimate tokens for this request
     const lastMessage = messages[messages.length - 1]?.content || ''
     const estimatedTokens = estimateTokens(lastMessage)
+
+    console.log('Token calculation:', {
+      messageLength: lastMessage.length,
+      estimatedTokens,
+      calculation: `${lastMessage.length} / 4 = ${lastMessage.length / 4}`
+    })
 
     const veniceApiKey = process.env.VENICE_API_KEY
     const veniceApiUrl = process.env.VENICE_API_URL
@@ -107,6 +117,16 @@ export async function POST(request: NextRequest) {
                   if (data === '[DONE]') {
                     // Calculate total tokens and track usage
                     totalTokensUsed = countTokens(lastMessage) + countTokens(fullResponse)
+
+                    console.log('Final token usage:', {
+                      userMessage: lastMessage.substring(0, 50) + '...',
+                      userMessageLength: lastMessage.length,
+                      userMessageTokens: countTokens(lastMessage),
+                      responseLength: fullResponse.length,
+                      responseTokens: countTokens(fullResponse),
+                      totalTokensUsed,
+                      userId
+                    })
 
                     // Track token usage in database
                     await trackTokenUsage({

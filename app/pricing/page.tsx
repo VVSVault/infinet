@@ -77,16 +77,16 @@ export default function PricingPage() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Choose Your Plan</h1>
           <p className="text-xl text-muted-foreground mb-2">
-            Premium AI Access - No Free Tier
+            Start free, then upgrade as you grow
           </p>
-          <div className="flex items-center justify-center gap-2 text-yellow-600 dark:text-yellow-400">
-            <AlertCircle className="h-5 w-5" />
-            <p className="font-semibold">Payment required to access any features</p>
+          <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400">
+            <Check className="h-5 w-5" />
+            <p className="font-semibold">New users get 500 free tokens every month</p>
           </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-8">
-          {Object.values(SUBSCRIPTION_TIERS).map((tier) => (
+          {Object.values(SUBSCRIPTION_TIERS).filter(tier => tier.id !== 'free').map((tier) => (
             <Card
               key={tier.id}
               className={`relative ${
@@ -142,7 +142,7 @@ export default function PricingPage() {
                   {loading === tier.id ? (
                     'Processing...'
                   ) : (
-                    `Get ${tier.name}`
+                    `Upgrade to ${tier.name}`
                   )}
                 </Button>
               </CardFooter>
@@ -162,17 +162,17 @@ export default function PricingPage() {
         </div>
 
         <div className="mt-12 max-w-3xl mx-auto">
-          <Card className="border-destructive/50 bg-destructive/5">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-destructive">No Free Access</CardTitle>
+              <CardTitle>Important Information</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm">
-                <li>• Immediate payment required after sign-up</li>
-                <li>• No free messages or trial without payment method</li>
-                <li>• All features require an active subscription</li>
+                <li>• New users get 500 free tokens every month</li>
+                <li>• Upgrade anytime to access more tokens and features</li>
                 <li>• Tokens do not roll over to the next month</li>
                 <li>• Hard limit enforcement - no overage charges</li>
+                <li>• All plans include priority support</li>
               </ul>
             </CardContent>
           </Card>

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Bot, Zap, Lock, MessageSquare } from 'lucide-react'
+import { Bot, Zap, Lock, MessageSquare, Crown } from 'lucide-react'
 
 export default function Home() {
   return (
@@ -35,6 +35,12 @@ export default function Home() {
               <Button size="lg" className="gap-2">
                 <MessageSquare className="h-5 w-5" />
                 Start Chatting
+              </Button>
+            </Link>
+            <Link href="/pricing">
+              <Button size="lg" variant="outline" className="gap-2">
+                <Crown className="h-5 w-5" />
+                View Premium Plans
               </Button>
             </Link>
             <Link href="/sign-in">

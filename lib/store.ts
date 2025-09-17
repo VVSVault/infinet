@@ -57,6 +57,18 @@ interface ChatStore {
   clearAllData: () => void
 }
 
+// Get user-specific storage key
+const getStorageKey = () => {
+  if (typeof window === 'undefined') return 'infinet-chat-store'
+
+  // Try to get user ID from Clerk's client-side session
+  const userId = (window as any).__clerk_user_id ||
+                 localStorage.getItem('clerk-user-id') ||
+                 'anonymous'
+
+  return `infinet-chat-store-${userId}`
+}
+
 export const useChatStore = create<ChatStore>()(
   persist(
     (set, get) => ({
@@ -201,7 +213,7 @@ export const useChatStore = create<ChatStore>()(
       },
     }),
     {
-      name: 'infinet-chat-store',
+      name: getStorageKey(),
       version: 1,
     }
   )

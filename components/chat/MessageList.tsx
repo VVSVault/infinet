@@ -4,8 +4,7 @@ import { Message } from '@/lib/store'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { CodeBlock } from './CodeBlock'
 import { useEffect, useRef, useState } from 'react'
 import { User, Bot, Copy, Check, Download, Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -157,19 +156,29 @@ export function MessageList({ messages }: MessageListProps) {
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        code({ node, className, children, ...props }: any) {
+                        code({ node, className, children, inline, ...props }: any) {
                           const match = /language-(\w+)/.exec(className || '')
-                          const inline = !match
-                          return !inline ? (
-                            <SyntaxHighlighter
-                              style={oneDark as any}
-                              language={match[1]}
-                              PreTag="div"
+                          const codeString = String(children).replace(/\n$/, '')
+
+                          if (!inline && match) {
+                            return (
+                              <CodeBlock
+                                code={codeString}
+                                language={match[1]}
+                                className="my-4"
+                              />
+                            )
+                          }
+
+                          return (
+                            <code
+                              className={cn(
+                                "px-1.5 py-0.5 rounded-md",
+                                "bg-muted text-sm font-mono",
+                                className
+                              )}
+                              {...props}
                             >
-                              {String(children).replace(/\n$/, '')}
-                            </SyntaxHighlighter>
-                          ) : (
-                            <code className={className} {...props}>
                               {children}
                             </code>
                           )

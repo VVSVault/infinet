@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { getUserSubscription, hasExceededTokenLimit, checkRateLimit, logRequest } from '@/lib/database/db'
+
+// Developer emails that bypass all subscription checks
+const DEVELOPER_EMAILS = [
+  'tannercarlson@vvsvault.com',
+  // Add more developer emails here as needed
+]
 
 export async function checkSubscription(request: NextRequest) {
   try {
@@ -14,19 +20,48 @@ export async function checkSubscription(request: NextRequest) {
       )
     }
 
+    // Check if user is a developer (bypass all checks)
+    const user = await currentUser()
+    const userEmail = user?.emailAddresses?.[0]?.emailAddress
+
+    if (userEmail && DEVELOPER_EMAILS.includes(userEmail.toLowerCase())) {
+      console.log(`Developer bypass activated for: ${userEmail}`)
+      // Return unlimited access for developers
+      return {
+        success: true,
+        subscription: {
+          userId,
+          tier: 'developer',
+          status: 'active',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+          isTrialing: false,
+          trialEndsAt: null,
+          isDeveloper: true,
+        },
+      }
+    }
+
     // Check for active subscription
     const subscription = await getUserSubscription(userId)
 
+    // If no subscription, provide free tier access (500 tokens)
     if (!subscription) {
-      return NextResponse.json(
-        {
-          error: 'Payment Required',
-          code: 'NO_SUBSCRIPTION',
-          message: 'You need an active subscription to use this service.',
-          redirect: '/pricing',
+      // Return free tier access for new users
+      return {
+        success: true,
+        subscription: {
+          userId,
+          tier: 'free',
+          status: 'active',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+          isTrialing: false,
+          trialEndsAt: null,
+          isFree: true,
+          tokenLimit: 500,
         },
-        { status: 402 } // Payment Required
-      )
+      }
     }
 
     // Check subscription status
@@ -85,6 +120,18 @@ export async function checkSubscription(request: NextRequest) {
 
     // Check token limit
     const exceededLimit = await hasExceededTokenLimit(userId)
+
+    // Log token limit check for debugging
+    console.log('Token limit check:', {
+      userId,
+      tier: subscription.tier,
+      exceededLimit,
+      subscription: {
+        tier: subscription.tier,
+        status: subscription.status,
+      }
+    })
+
     if (exceededLimit) {
       return NextResponse.json(
         {
@@ -95,6 +142,7 @@ export async function checkSubscription(request: NextRequest) {
           subscription: {
             tier: subscription.tier,
             periodEnd: subscription.current_period_end,
+            tokenLimit: 500, // Free tier limit
           },
         },
         { status: 429 } // Too Many Requests

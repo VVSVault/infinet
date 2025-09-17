@@ -1,15 +1,20 @@
 import Stripe from 'stripe'
 
 // Initialize Stripe
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
+const stripeKey = process.env.STRIPE_SECRET_KEY
+if (!stripeKey) {
+  console.error('STRIPE_SECRET_KEY is not set in environment variables')
+}
+
+export const stripe = new Stripe(stripeKey || '', {
+  apiVersion: '2025-08-27.basil',
 })
 
-// Stripe Price IDs (you'll need to create these in Stripe Dashboard)
+// Stripe Price IDs (live mode)
 export const STRIPE_PRICE_IDS = {
-  starter: process.env.STRIPE_STARTER_PRICE_ID || 'price_starter_monthly',
-  premium: process.env.STRIPE_PREMIUM_PRICE_ID || 'price_premium_monthly',
-  limitless: process.env.STRIPE_LIMITLESS_PRICE_ID || 'price_limitless_monthly',
+  starter: process.env.STRIPE_STARTER_PRICE_ID || 'price_1S8B4gQgllS64VYRe0g9TqkE',
+  premium: process.env.STRIPE_PREMIUM_PRICE_ID || 'price_1S8B4gQgllS64VYRZSRVK0TN',
+  limitless: process.env.STRIPE_LIMITLESS_PRICE_ID || 'price_1S8B4gQgllS64VYR4BIYL0jC',
   trial: 'trial', // No price ID for trial
 }
 
@@ -179,6 +184,13 @@ export async function createCheckoutSession(
     return session
   } catch (error) {
     console.error('Error creating checkout session:', error)
+    console.error('Details:', {
+      customerId,
+      priceId,
+      successUrl,
+      cancelUrl,
+      trial
+    })
     throw error
   }
 }
@@ -248,18 +260,23 @@ export async function calculateProration(
 ): Promise<number> {
   try {
     const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-    const proration = await stripe.invoices.retrieveUpcoming({
+
+    // Using createPreview for the new API
+    const preview = await stripe.invoices.createPreview({
       customer: subscription.customer as string,
       subscription: subscriptionId,
-      subscription_items: [
-        {
-          id: subscription.items.data[0].id,
-          price: newPriceId,
-        },
-      ],
-      subscription_proration_behavior: 'create_prorations',
+      subscription_details: {
+        items: [
+          {
+            id: subscription.items.data[0].id,
+            price: newPriceId,
+          },
+        ],
+        proration_behavior: 'create_prorations',
+      },
     })
-    return proration.amount_due / 100 // Convert from cents
+
+    return preview.amount_due / 100 // Convert from cents
   } catch (error) {
     console.error('Error calculating proration:', error)
     return 0

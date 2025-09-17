@@ -6,10 +6,12 @@ import { MessageList } from './MessageList'
 import { ShareDialog } from './ShareDialog'
 import { ImageGenerator } from './ImageGenerator'
 import { FileUploader } from './FileUploader'
+import { UpgradePrompt } from './UpgradePrompt'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Send, StopCircle, Loader2, Share2, Trash2, ImageIcon, Paperclip } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import Link from 'next/link'
 
 export function ChatInterface() {
   const [input, setInput] = useState('')
@@ -19,6 +21,8 @@ export function ChatInterface() {
   const [imageGeneratorOpen, setImageGeneratorOpen] = useState(false)
   const [imageGeneratorPrompt, setImageGeneratorPrompt] = useState('')
   const [fileUploaderOpen, setFileUploaderOpen] = useState(false)
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
+  const [tokenInfo, setTokenInfo] = useState<{ tier?: string; limit?: number; used?: number }>({})
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { toast } = useToast()
 
@@ -121,6 +125,36 @@ export function ChatInterface() {
       })
 
       if (!response.ok) {
+        if (response.status === 402 || response.status === 429) {
+          // Payment required or rate limit - user has hit their token limit
+          const errorData = await response.json()
+
+          // Remove the last empty assistant message we added
+          const store = useChatStore.getState()
+          const chat = store.chats.find(c => c.id === chatId)
+          if (chat && chat.messages.length > 0) {
+            const lastMessage = chat.messages[chat.messages.length - 1]
+            if (lastMessage.role === 'assistant' && !lastMessage.content) {
+              store.chats = store.chats.map(c =>
+                c.id === chatId
+                  ? { ...c, messages: c.messages.slice(0, -1) }
+                  : c
+              )
+            }
+          }
+
+          // Show upgrade prompt in the chat
+          setShowUpgradePrompt(true)
+          setTokenInfo({
+            tier: errorData.subscription?.tier || 'free',
+            limit: errorData.subscription?.tokenLimit || 500,
+            used: errorData.subscription?.tokenLimit || 500
+          })
+
+          setIsLoading(false)
+          setIsGenerating(false)
+          return
+        }
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
@@ -295,7 +329,7 @@ export function ChatInterface() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col relative">
       <div className="flex items-center justify-between border-b px-4 py-2">
         <h2 className="font-semibold">{currentChat.title}</h2>
         <div className="flex gap-2">
@@ -320,6 +354,14 @@ export function ChatInterface() {
       </div>
 
       <MessageList messages={currentChat.messages} />
+
+      {showUpgradePrompt && (
+        <UpgradePrompt
+          currentTier={tokenInfo.tier}
+          tokenLimit={tokenInfo.limit}
+          tokensUsed={tokenInfo.used}
+        />
+      )}
 
       <div className="border-t p-4">
         <form onSubmit={handleSubmit} className="flex gap-2">

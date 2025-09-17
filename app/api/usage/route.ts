@@ -9,7 +9,11 @@ export async function GET(request: NextRequest) {
 
     if (!userId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        {
+          error: 'Authentication required',
+          message: 'Please sign in to view usage statistics',
+          code: 'NO_AUTH'
+        },
         { status: 401 }
       )
     }
