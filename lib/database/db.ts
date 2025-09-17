@@ -1,4 +1,4 @@
-import { sql } from './postgres-client'
+import { sql, query } from './postgres-client'
 import { SUBSCRIPTION_TIERS } from '../subscription-tiers'
 
 export interface UserSubscription {
@@ -430,12 +430,40 @@ export async function updateUserSubscription(
 
     if (sets.length === 0) return true
 
-    // Build and execute the update query
-    await sql`
-      UPDATE users_subscription
-      SET ${sql.unsafe(sets.join(', '))}
-      WHERE user_id = ${userId}
-    `
+    // Build and execute the update query dynamically
+    const setParts: string[] = []
+    const values: any[] = []
+    let paramCount = 1
+
+    if (updates.subscription_tier) {
+      setParts.push(`tier = $${paramCount++}`)
+      values.push(updates.subscription_tier)
+    }
+    if (updates.subscription_status) {
+      setParts.push(`status = $${paramCount++}`)
+      values.push(updates.subscription_status)
+    }
+    if (updates.stripe_subscription_id) {
+      setParts.push(`stripe_subscription_id = $${paramCount++}`)
+      values.push(updates.stripe_subscription_id)
+    }
+    if (updates.stripe_customer_id) {
+      setParts.push(`stripe_customer_id = $${paramCount++}`)
+      values.push(updates.stripe_customer_id)
+    }
+    if (updates.subscription_period_start) {
+      setParts.push(`current_period_start = $${paramCount++}`)
+      values.push(updates.subscription_period_start.toISOString())
+    }
+    if (updates.subscription_period_end) {
+      setParts.push(`current_period_end = $${paramCount++}`)
+      values.push(updates.subscription_period_end.toISOString())
+    }
+
+    values.push(userId)
+
+    const queryText = `UPDATE users_subscription SET ${setParts.join(', ')} WHERE user_id = $${paramCount}`
+    await query(queryText, values)
 
     // Update the cache if tier changed
     if (updates.subscription_tier) {
