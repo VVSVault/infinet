@@ -480,4 +480,3 @@ export function ChatInterface() {
     </div>
   )
 }
-// Trigger Vercel rebuild Wed, Sep 17, 2025  6:33:44 AM
