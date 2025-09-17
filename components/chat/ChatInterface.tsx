@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Send, StopCircle, Loader2, Share2, Trash2, ImageIcon, Paperclip } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
+import { cycleLoadingMessages } from '@/lib/loading-messages'
 
 export function ChatInterface() {
   const [input, setInput] = useState('')
@@ -23,6 +24,7 @@ export function ChatInterface() {
   const [fileUploaderOpen, setFileUploaderOpen] = useState(false)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
   const [tokenInfo, setTokenInfo] = useState<{ tier?: string; limit?: number; used?: number }>({})
+  const [loadingMessage, setLoadingMessage] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { toast } = useToast()
 
@@ -36,6 +38,22 @@ export function ChatInterface() {
   } = useChatStore()
 
   const currentChat = getCurrentChat()
+
+  // Effect to cycle through loading messages
+  useEffect(() => {
+    if (isGenerating || isLoading) {
+      const messageGenerator = cycleLoadingMessages()
+      setLoadingMessage(messageGenerator.next().value || '')
+
+      const interval = setInterval(() => {
+        setLoadingMessage(messageGenerator.next().value || '')
+      }, 2000) // Change message every 2 seconds
+
+      return () => clearInterval(interval)
+    } else {
+      setLoadingMessage('')
+    }
+  }, [isGenerating, isLoading])
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -116,7 +134,7 @@ export function ChatInterface() {
         },
         body: JSON.stringify({
           messages: [
-            ...currentChat?.messages.filter(m => m.role !== 'assistant' || m.content) || [],
+            ...currentChat?.messages.filter(m => m.content) || [],
             { role: 'user', content: userMessage }
           ],
           streaming: true,
@@ -353,7 +371,7 @@ export function ChatInterface() {
         </div>
       </div>
 
-      <MessageList messages={currentChat.messages} />
+      <MessageList messages={currentChat.messages} loadingMessage={loadingMessage} />
 
       {showUpgradePrompt && (
         <UpgradePrompt

@@ -112,8 +112,18 @@ export default function PricingPage() {
                 </div>
                 <CardDescription>{tier.description}</CardDescription>
                 <div className="mt-4">
+                  {(tier.id === 'premium' || tier.id === 'limitless') && (
+                    <span className="text-2xl line-through opacity-50 text-muted-foreground mr-2">
+                      ${tier.id === 'premium' ? '100' : '300'}
+                    </span>
+                  )}
                   <span className="text-4xl font-bold">${tier.price}</span>
                   <span className="text-muted-foreground">/month</span>
+                  {(tier.id === 'premium' || tier.id === 'limitless') && (
+                    <span className="ml-2 text-sm text-green-600 dark:text-green-400 font-semibold">
+                      Save ${tier.id === 'premium' ? '50' : '200'}!
+                    </span>
+                  )}
                 </div>
                 <div className="mt-2 text-sm text-muted-foreground">
                   {tier.tokenLimit.toLocaleString()} tokens/month

@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { CodeBlock } from './CodeBlock'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { User, Bot, Copy, Check, Download, Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -19,12 +19,98 @@ import {
 
 interface MessageListProps {
   messages: Message[]
+  loadingMessage?: string
 }
 
-export function MessageList({ messages }: MessageListProps) {
+interface MessageContentProps {
+  content: string
+  isBot: boolean
+  messageId: string
+  typedMessageIds: Set<string>
+}
+
+function MessageContent({ content, isBot, messageId, typedMessageIds }: MessageContentProps) {
+  const [displayedContent, setDisplayedContent] = useState('')
+  const [isTyping, setIsTyping] = useState(false)
+
+  useEffect(() => {
+    // Only animate bot messages that haven't been typed yet
+    if (!isBot || typedMessageIds.has(messageId)) {
+      setDisplayedContent(content)
+      return
+    }
+
+    setIsTyping(true)
+    setDisplayedContent('')
+    typedMessageIds.add(messageId)
+
+    // Parse content to preserve markdown structure
+    let currentIndex = 0
+    const speed = 15 // Milliseconds between updates
+    const charsPerUpdate = 5 // Characters to add per update
+
+    const typeWriter = setInterval(() => {
+      if (currentIndex < content.length) {
+        const nextChars = Math.min(charsPerUpdate, content.length - currentIndex)
+        setDisplayedContent(content.substring(0, currentIndex + nextChars))
+        currentIndex += nextChars
+      } else {
+        setIsTyping(false)
+        clearInterval(typeWriter)
+      }
+    }, speed)
+
+    return () => clearInterval(typeWriter)
+  }, [content, isBot, messageId])
+
+  return (
+    <>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          code({ node, className, children, inline, ...props }: any) {
+            const match = /language-(\w+)/.exec(className || '')
+            const codeString = String(children).replace(/\n$/, '')
+
+            if (!inline && match) {
+              return (
+                <CodeBlock
+                  code={codeString}
+                  language={match[1]}
+                  className="my-4"
+                />
+              )
+            }
+
+            return (
+              <code
+                className={cn(
+                  "px-1.5 py-0.5 rounded-md",
+                  "bg-muted text-sm font-mono",
+                  className
+                )}
+                {...props}
+              >
+                {children}
+              </code>
+            )
+          },
+        }}
+      >
+        {displayedContent}
+      </ReactMarkdown>
+      {isTyping && (
+        <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse" />
+      )}
+    </>
+  )
+}
+
+export function MessageList({ messages, loadingMessage }: MessageListProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [expandedImage, setExpandedImage] = useState<string | null>(null)
+  const [typedMessageIds] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     // Auto scroll to bottom when new messages arrive
@@ -153,40 +239,12 @@ export function MessageList({ messages }: MessageListProps) {
                       )}
                     </div>
                   ) : (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        code({ node, className, children, inline, ...props }: any) {
-                          const match = /language-(\w+)/.exec(className || '')
-                          const codeString = String(children).replace(/\n$/, '')
-
-                          if (!inline && match) {
-                            return (
-                              <CodeBlock
-                                code={codeString}
-                                language={match[1]}
-                                className="my-4"
-                              />
-                            )
-                          }
-
-                          return (
-                            <code
-                              className={cn(
-                                "px-1.5 py-0.5 rounded-md",
-                                "bg-muted text-sm font-mono",
-                                className
-                              )}
-                              {...props}
-                            >
-                              {children}
-                            </code>
-                          )
-                        },
-                      }}
-                    >
-                      {message.content || '_Thinking..._'}
-                    </ReactMarkdown>
+                    <MessageContent
+                      content={message.content || (loadingMessage ? `_${loadingMessage}_` : '_Thinking..._')}
+                      isBot={message.role !== 'user'}
+                      messageId={message.id}
+                      typedMessageIds={typedMessageIds}
+                    />
                   )}
                 </div>
                 </div>
