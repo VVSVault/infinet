@@ -253,7 +253,7 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                            className="h-6 w-6 p-0 opacity-10 hover:opacity-100 group-hover:opacity-100 transition-opacity"
                           >
                             <MoreVertical className="h-3 w-3" />
                           </Button>
@@ -282,7 +282,7 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                           <div
                             key={chat.id}
                             className={cn(
-                              'group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer',
+                              'group relative flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer',
                               currentChatId === chat.id && 'bg-accent'
                             )}
                             onClick={() => setCurrentChat(chat.id)}
@@ -311,7 +311,7 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                                  className="h-6 w-6 p-0 opacity-10 hover:opacity-100 group-hover:opacity-100 transition-opacity"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <MoreVertical className="h-3 w-3" />
@@ -372,7 +372,7 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                         <div
                           key={chat.id}
                           className={cn(
-                            'group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer',
+                            'group relative flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer',
                             currentChatId === chat.id && 'bg-accent'
                           )}
                           onClick={() => setCurrentChat(chat.id)}
@@ -403,7 +403,7 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                                className="h-6 w-6 p-0 opacity-10 hover:opacity-100 group-hover:opacity-100 transition-opacity"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <MoreVertical className="h-3 w-3" />
