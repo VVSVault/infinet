@@ -27,7 +27,7 @@ export default function Home() {
           </h1>
 
           <p className="text-xl text-muted-foreground mb-8">
-            Experience the power of Llama 3.3 70B model with a beautiful, intuitive interface
+            Your Thoughts Deserve Infinet Answers
           </p>
 
           <div className="flex gap-4 justify-center mb-16">
