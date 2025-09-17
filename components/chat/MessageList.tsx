@@ -205,7 +205,7 @@ export function MessageList({ messages, loadingMessage, isGenerating = false }: 
                       )}
                     </div>
                   ) : (
-                    {!message.content && loadingMessage && message.role === 'assistant' ? (
+                    !message.content && loadingMessage && message.role === 'assistant' ? (
                       <div className="italic text-muted-foreground">
                         {loadingMessage}
                       </div>
@@ -217,7 +217,7 @@ export function MessageList({ messages, loadingMessage, isGenerating = false }: 
                         typedMessageIds={typedMessageIds}
                         isGenerating={isGenerating}
                       />
-                    )}
+                    )
                   )}
                 </div>
                 </div>
