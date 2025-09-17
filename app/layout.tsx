@@ -28,28 +28,15 @@ export default function RootLayout({
   return (
     <ClerkProvider
       appearance={{
-        baseTheme: undefined,
         elements: {
-          formButtonPrimary:
-            'bg-primary text-primary-foreground hover:bg-primary/90',
-          card: 'bg-background',
-          headerTitle: 'text-foreground',
-          headerSubtitle: 'text-muted-foreground',
-          socialButtonsBlockButton:
-            'bg-background border-input hover:bg-accent hover:text-accent-foreground',
-          formFieldLabel: 'text-foreground',
-          formFieldInput:
-            'bg-background border-input text-foreground',
-          footerActionLink: 'text-primary hover:text-primary/90'
-        },
-        variables: {
-          colorPrimary: 'hsl(var(--primary))',
-          colorTextOnPrimaryBackground: 'hsl(var(--primary-foreground))',
-          colorBackground: 'hsl(var(--background))',
-          colorText: 'hsl(var(--foreground))',
-          colorTextSecondary: 'hsl(var(--muted-foreground))',
-          colorInputBackground: 'hsl(var(--background))',
-          colorInputText: 'hsl(var(--foreground))',
+          card: 'bg-white',
+          headerTitle: 'text-gray-900',
+          headerSubtitle: 'text-gray-600',
+          socialButtonsBlockButton: 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50',
+          formFieldLabel: 'text-gray-700',
+          formFieldInput: 'bg-white border-gray-300 text-gray-900',
+          footerActionLink: 'text-blue-600 hover:text-blue-500',
+          formButtonPrimary: 'bg-blue-600 text-white hover:bg-blue-700'
         }
       }}>
       <html lang="en" suppressHydrationWarning>
