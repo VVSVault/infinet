@@ -33,6 +33,7 @@ function MessageContent({ content, isBot, messageId, typedMessageIds }: MessageC
   const [isStreaming, setIsStreaming] = useState(false)
   const previousContentRef = useRef('')
   const hasStartedTypingRef = useRef(false)
+  const noChangeCountRef = useRef(0)
 
   useEffect(() => {
     // For user messages, just show them immediately
@@ -47,15 +48,35 @@ function MessageContent({ content, isBot, messageId, typedMessageIds }: MessageC
     if (isCurrentlyStreaming) {
       setIsStreaming(true)
       hasStartedTypingRef.current = true
-    } else if (hasStartedTypingRef.current && content.length > 0 &&
-               content === previousContentRef.current) {
-      // Content stopped changing, streaming is complete
-      setIsStreaming(false)
-      typedMessageIds.add(messageId)
-      hasStartedTypingRef.current = false
+      noChangeCountRef.current = 0
+    } else if (hasStartedTypingRef.current && content.length > 0) {
+      // Check if content hasn't changed for a few cycles
+      if (content === previousContentRef.current) {
+        noChangeCountRef.current++
+        // After no changes for 2 cycles (about 100ms), consider streaming complete
+        if (noChangeCountRef.current >= 2) {
+          setIsStreaming(false)
+          typedMessageIds.add(messageId)
+          hasStartedTypingRef.current = false
+          noChangeCountRef.current = 0
+        }
+      } else {
+        noChangeCountRef.current = 0
+      }
     }
 
     previousContentRef.current = content
+
+    // Set a timeout to ensure dots disappear even if no more updates come
+    const timeout = setTimeout(() => {
+      if (hasStartedTypingRef.current && content.length > 0) {
+        setIsStreaming(false)
+        typedMessageIds.add(messageId)
+        hasStartedTypingRef.current = false
+      }
+    }, 500)
+
+    return () => clearTimeout(timeout)
   }, [content, isBot, messageId, typedMessageIds])
 
   // Direct display for streaming content (real-time updates)
