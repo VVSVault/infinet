@@ -162,7 +162,7 @@ export function MessageList({ messages }: MessageListProps) {
                           const inline = !match
                           return !inline ? (
                             <SyntaxHighlighter
-                              style={oneDark}
+                              style={oneDark as any}
                               language={match[1]}
                               PreTag="div"
                               {...props}
