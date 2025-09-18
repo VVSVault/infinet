@@ -158,10 +158,29 @@ export default function AdminPage() {
               </Link>
               <h1 className="text-2xl font-bold">Admin Dashboard</h1>
             </div>
-            <Button onClick={fetchUsers} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={async () => {
+                  const res = await fetch('/api/admin/fix-tokens', { method: 'POST' })
+                  if (res.ok) {
+                    const data = await res.json()
+                    toast({
+                      title: 'Token Counts Fixed',
+                      description: `Fixed ${data.fixes.overCountedFixed} overcounted records`,
+                    })
+                    fetchUsers()
+                  }
+                }}
+                variant="outline"
+                size="sm"
+              >
+                Fix Token Counts
+              </Button>
+              <Button onClick={fetchUsers} variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
           </div>
         </div>
       </div>

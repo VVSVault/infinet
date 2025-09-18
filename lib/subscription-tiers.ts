@@ -102,8 +102,20 @@ export function calculateTokenCost(tier: SubscriptionTier): number {
 
 // Estimate tokens for a message
 export function estimateTokens(message: string, includesImage = false): number {
-  // Rough estimation: 1 token ≈ 4 characters
-  const textTokens = Math.ceil(message.length / 4)
+  // Better estimation based on word count for typical messages
+  const words = message.split(/\s+/).length
+  const chars = message.length
+
+  let textTokens: number
+  if (chars < 1000) {
+    // Use word count for shorter texts (more accurate)
+    // Approximately 0.75 tokens per word
+    textTokens = Math.ceil(words * 0.75)
+  } else {
+    // For longer texts, use character count
+    textTokens = Math.ceil(chars / 4)
+  }
+
   const imageTokens = includesImage ? TOKEN_ESTIMATES.imageGenerationTokens : 0
   return textTokens + imageTokens
 }

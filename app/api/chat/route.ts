@@ -4,10 +4,22 @@ import { checkSubscription, isSubscriptionError } from '@/middleware/checkSubscr
 import { trackTokenUsage, checkUsageAlerts } from '@/lib/database/db'
 import { estimateTokens } from '@/lib/subscription-tiers'
 
-// Simple token counter (you may want to use a proper tokenizer like tiktoken in production)
+// More accurate token counter
 function countTokens(text: string): number {
-  // Rough estimation: 1 token ≈ 4 characters
-  return Math.ceil(text.length / 4)
+  // Better estimation based on OpenAI's approximation:
+  // ~1 token per 4 characters in English
+  // But we'll be more conservative for smaller counts
+  const words = text.split(/\s+/).length
+  const chars = text.length
+
+  // Use word count for shorter texts (more accurate for typical messages)
+  // Approximately 0.75 tokens per word
+  if (chars < 1000) {
+    return Math.ceil(words * 0.75)
+  }
+
+  // For longer texts, use character count
+  return Math.ceil(chars / 4)
 }
 
 export async function POST(request: NextRequest) {
