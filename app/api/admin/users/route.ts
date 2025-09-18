@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth, clerkClient } from '@clerk/nextjs/server'
-import { getDb } from '@/lib/database/db'
+import { query } from '@/lib/database/postgres-client'
 
 export async function GET() {
   try {
@@ -29,18 +29,15 @@ export async function GET() {
       orderBy: '-created_at'
     })
 
-    // Get database connection
-    const db = await getDb()
-
     // Fetch subscription data for all users
     const userIds = clerkUsers.data.map(user => user.id)
-    const subscriptions = await db.query(
+    const subscriptions = await query(
       `SELECT * FROM users_subscription WHERE user_id = ANY($1::text[])`,
       [userIds]
     )
 
     // Fetch usage data for all users
-    const usageData = await db.query(
+    const usageData = await query(
       `SELECT
         user_id,
         COUNT(*) as total_requests,
