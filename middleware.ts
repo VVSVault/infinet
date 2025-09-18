@@ -1,7 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
-const isProtectedRoute = createRouteMatcher(['/chat(.*)', '/dashboard(.*)'])
+const isProtectedRoute = createRouteMatcher(['/chat(.*)', '/dashboard(.*)', '/admin(.*)'])
 const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
