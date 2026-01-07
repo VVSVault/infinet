@@ -165,9 +165,10 @@ export default function Home() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-background dark mesh-gradient noise-overlay relative overflow-hidden">
-      {/* Grid pattern overlay */}
-      <div className="fixed inset-0 grid-pattern opacity-30 pointer-events-none" />
+    <div className="dark">
+      <div className="min-h-screen bg-[hsl(220,20%,6%)] text-[hsl(60,9%,94%)] mesh-gradient noise-overlay relative overflow-hidden">
+        {/* Grid pattern overlay */}
+        <div className="fixed inset-0 grid-pattern opacity-20 pointer-events-none" />
 
       {/* Sticky Navigation */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
@@ -436,6 +437,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   )
 }
