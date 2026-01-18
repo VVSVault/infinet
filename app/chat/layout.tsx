@@ -34,7 +34,7 @@ export default function ChatLayout({
 
   return (
     <UserStoreProvider>
-      <div className="flex h-screen bg-background">
+      <div className="flex h-[100dvh] bg-background">
         <ChatSidebar
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}

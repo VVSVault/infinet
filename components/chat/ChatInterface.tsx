@@ -391,7 +391,7 @@ export function ChatInterface() {
         />
       )}
 
-      <div className="border-t p-2 sm:p-4">
+      <div className="border-t p-2 sm:p-4 flex-shrink-0 bg-background">
         <form onSubmit={handleSubmit} className="flex gap-1 sm:gap-2">
           <div className="flex flex-col gap-1 sm:gap-2">
             <Button
