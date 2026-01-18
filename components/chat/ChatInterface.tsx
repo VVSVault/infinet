@@ -393,7 +393,7 @@ export function ChatInterface() {
 
       <div className="border-t p-2 sm:p-4 flex-shrink-0 bg-background">
         <form onSubmit={handleSubmit} className="flex gap-1 sm:gap-2">
-          <div className="flex flex-col gap-1 sm:gap-2">
+          <div className="flex gap-1 sm:gap-2">
             <Button
               type="button"
               onClick={() => {
@@ -420,39 +420,37 @@ export function ChatInterface() {
               <Paperclip className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
           </div>
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder='Ask anything privately'
-            className="min-h-[60px] sm:min-h-[80px] resize-none text-sm sm:text-base"
-            disabled={isLoading}
-          />
-          {isLoading ? (
-            <Button
-              type="button"
-              onClick={handleStop}
-              variant="destructive"
-              size="icon"
-              className="h-8 w-8 sm:h-10 sm:w-10"
-            >
-              <StopCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              disabled={!input.trim()}
-              size="icon"
-              className="h-8 w-8 sm:h-10 sm:w-10"
-            >
-              {isLoading ? (
-                <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-              ) : (
+          <div className="relative flex-1">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder='Ask anything privately'
+              className="min-h-[44px] sm:min-h-[52px] pr-12 resize-none text-sm sm:text-base"
+              disabled={isLoading}
+            />
+            {isLoading ? (
+              <Button
+                type="button"
+                onClick={handleStop}
+                variant="destructive"
+                size="icon"
+                className="absolute right-2 bottom-2 h-7 w-7 sm:h-8 sm:w-8"
+              >
+                <StopCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={!input.trim()}
+                size="icon"
+                className="absolute right-2 bottom-2 h-7 w-7 sm:h-8 sm:w-8"
+              >
                 <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              )}
-            </Button>
-          )}
+              </Button>
+            )}
+          </div>
         </form>
       </div>
 
