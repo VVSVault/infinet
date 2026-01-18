@@ -105,7 +105,13 @@ export function MessageList({ messages, loadingMessage, isGenerating = false }: 
       {messages.length === 0 ? (
         <div className="flex h-full items-center justify-center">
           <div className="text-center text-muted-foreground">
-            <Bot className="mx-auto h-12 w-12 mb-4" />
+            <Image
+              src="/logo.png"
+              alt="Infinet"
+              width={48}
+              height={48}
+              className="mx-auto mb-4 grayscale opacity-50"
+            />
             <p>Start a conversation by typing a message below</p>
           </div>
         </div>
