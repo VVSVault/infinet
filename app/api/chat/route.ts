@@ -9,7 +9,7 @@ import { estimateTokens } from '@/lib/subscription-tiers'
 function countTokens(text: string): number {
   const words = text.split(/\s+/).filter(w => w.length > 0).length
   // ~0.75 tokens per word is a reasonable estimate for English text
-  return Math.max(1, Math.ceil(words * 0.75))
+  return Math.max(20, Math.ceil(words * 0.75))
 }
 
 export async function POST(request: NextRequest) {
