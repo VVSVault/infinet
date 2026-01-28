@@ -4,22 +4,12 @@ import { checkSubscription, isSubscriptionError } from '@/middleware/checkSubscr
 import { trackTokenUsage, checkUsageAlerts } from '@/lib/database/db'
 import { estimateTokens } from '@/lib/subscription-tiers'
 
-// More accurate token counter
+// Token counter - counts only user input tokens for billing purposes.
+// AI response tokens are not charged since users shouldn't pay for model verbosity.
 function countTokens(text: string): number {
-  // Better estimation based on OpenAI's approximation:
-  // ~1 token per 4 characters in English
-  // But we'll be more conservative for smaller counts
-  const words = text.split(/\s+/).length
-  const chars = text.length
-
-  // Use word count for shorter texts (more accurate for typical messages)
-  // Approximately 0.75 tokens per word
-  if (chars < 1000) {
-    return Math.ceil(words * 0.75)
-  }
-
-  // For longer texts, use character count
-  return Math.ceil(chars / 4)
+  const words = text.split(/\s+/).filter(w => w.length > 0).length
+  // ~0.75 tokens per word is a reasonable estimate for English text
+  return Math.max(1, Math.ceil(words * 0.75))
 }
 
 export async function POST(request: NextRequest) {
@@ -127,16 +117,13 @@ export async function POST(request: NextRequest) {
                 if (line.startsWith('data: ')) {
                   const data = line.slice(6)
                   if (data === '[DONE]') {
-                    // Calculate total tokens and track usage
-                    totalTokensUsed = countTokens(lastMessage) + countTokens(fullResponse)
+                    // Calculate tokens - only bill for user input, not AI response length
+                    totalTokensUsed = countTokens(lastMessage)
 
                     console.log('Final token usage:', {
                       userMessage: lastMessage.substring(0, 50) + '...',
-                      userMessageLength: lastMessage.length,
-                      userMessageTokens: countTokens(lastMessage),
+                      userMessageTokens: totalTokensUsed,
                       responseLength: fullResponse.length,
-                      responseTokens: countTokens(fullResponse),
-                      totalTokensUsed,
                       userId
                     })
 
@@ -201,8 +188,7 @@ export async function POST(request: NextRequest) {
       })
     } else {
       const data = await response.json()
-      const responseContent = data.choices?.[0]?.message?.content || ''
-      totalTokensUsed = countTokens(lastMessage) + countTokens(responseContent)
+      totalTokensUsed = countTokens(lastMessage)
 
       // Track token usage
       await trackTokenUsage({

@@ -133,6 +133,14 @@ export async function checkSubscription(request: NextRequest) {
     })
 
     if (exceededLimit) {
+      const tierLimits: Record<string, number> = {
+        free: 500,
+        starter: 10000,
+        premium: 50000,
+        limitless: 100000,
+        trial: 1000,
+      }
+
       return NextResponse.json(
         {
           error: 'Token Limit Exceeded',
@@ -142,7 +150,7 @@ export async function checkSubscription(request: NextRequest) {
           subscription: {
             tier: subscription.tier,
             periodEnd: subscription.current_period_end,
-            tokenLimit: 500, // Free tier limit
+            tokenLimit: tierLimits[subscription.tier] || 500,
           },
         },
         { status: 429 } // Too Many Requests
