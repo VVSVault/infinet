@@ -19,7 +19,9 @@ import {
   Edit,
   Crown,
   Archive,
+  Settings,
 } from 'lucide-react'
+import { SettingsPanel } from './SettingsPanel'
 import Link from 'next/link'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -470,30 +472,27 @@ export function ChatSidebar({ isOpen, onClose }: ChatSidebarProps) {
             </div>
           </ScrollArea>
 
-          {/* Upgrade to Premium button at bottom - hidden for developers */}
-          {!isDeveloper && (
-            <div className="border-t p-4">
+          {/* Settings and Upgrade section at bottom */}
+          <div className="border-t p-4 space-y-2">
+            <SettingsPanel />
+            {!isDeveloper && (
               <Link href="/pricing" className="block">
                 <Button
                   variant="outline"
                   className="w-full gap-2 bg-gradient-to-r from-primary/10 to-primary/20 hover:from-primary/20 hover:to-primary/30 border-primary/20"
                 >
                   <Crown className="h-4 w-4 text-primary" />
-                  Upgrade to Premium
+                  Upgrade Plan
                 </Button>
               </Link>
-            </div>
-          )}
-
-          {/* Developer indicator */}
-          {isDeveloper && (
-            <div className="border-t p-4">
-              <div className="text-center text-sm text-muted-foreground">
-                <Crown className="h-4 w-4 text-primary inline-block mr-1" />
-                Developer Mode Active
+            )}
+            {isDeveloper && (
+              <div className="text-center text-xs text-muted-foreground">
+                <Crown className="h-3 w-3 text-primary inline-block mr-1" />
+                Developer Mode
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
