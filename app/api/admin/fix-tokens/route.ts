@@ -10,7 +10,7 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const adminEmails = ['tannercarlson@vvsvault.com']
+    const adminEmails = ['tannercarlson@vvsvault.com', 'tannerscarlson@gmail.com']
     const currentUser = await (await clerkClient()).users.getUser(userId)
     const userEmail = currentUser.emailAddresses[0]?.emailAddress
 

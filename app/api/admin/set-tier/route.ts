@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { sql } from '@/lib/database/postgres-client'
 
-const ADMIN_EMAILS = ['tannercarlson@vvsvault.com']
+const ADMIN_EMAILS = ['tannercarlson@vvsvault.com', 'tannerscarlson@gmail.com']
 
 export async function POST(request: NextRequest) {
   try {

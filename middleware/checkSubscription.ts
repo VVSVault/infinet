@@ -5,7 +5,7 @@ import { getUserSubscription, hasExceededTokenLimit, checkRateLimit, logRequest 
 // Developer emails that bypass all subscription checks
 const DEVELOPER_EMAILS = [
   'tannercarlson@vvsvault.com',
-  // Add more developer emails here as needed
+  'tannerscarlson@gmail.com',
 ]
 
 export async function checkSubscription(request: NextRequest) {
