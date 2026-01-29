@@ -42,6 +42,7 @@ export function SettingsPanel() {
   const [open, setOpen] = useState(false)
   const [usage, setUsage] = useState<UsageData | null>(null)
   const [loading, setLoading] = useState(false)
+  const [billingLoading, setBillingLoading] = useState(false)
   const { user } = useUser()
 
   const fetchUsage = async () => {
@@ -70,6 +71,24 @@ export function SettingsPanel() {
   const periodEnd = usage?.subscription.periodEnd
     ? new Date(usage.subscription.periodEnd).toLocaleDateString()
     : null
+  const hasBilling = usage?.subscription.tier !== 'free' && usage?.subscription.tier !== 'developer'
+
+  const handleManageBilling = async () => {
+    setBillingLoading(true)
+    try {
+      const res = await fetch('/api/billing/portal', { method: 'POST' })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        console.error('No portal URL returned:', data.error)
+      }
+    } catch (error) {
+      console.error('Failed to open billing portal:', error)
+    } finally {
+      setBillingLoading(false)
+    }
+  }
 
   return (
     <>
@@ -181,12 +200,17 @@ export function SettingsPanel() {
                   </Button>
                 </Link>
               )}
-              <Link href="/billing" onClick={() => setOpen(false)}>
-                <Button variant="outline" className="w-full gap-2">
+              {hasBilling && (
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={handleManageBilling}
+                  disabled={billingLoading}
+                >
                   <ExternalLink className="h-4 w-4" />
-                  Manage Billing
+                  {billingLoading ? 'Opening...' : 'Manage Billing'}
                 </Button>
-              </Link>
+              )}
             </div>
           </div>
         </DialogContent>
